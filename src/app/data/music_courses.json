@@ -1,0 +1,154 @@
+{
+  "courses": [
+    {
+      "id": 1,
+      "title": "Raga Composition Generator",
+      "slug": "raga-composition-generator",
+      "description": "Create authentic ragas with our AI-powered composition tool that respects traditional Indian classical music structures and scales based on your text prompts or hummed melodies.",
+      "price": 0,
+      "instructor": "me",
+      "isFeatured": true,
+      "image": "/courses/guitar.jpg"
+    },
+    {
+      "id": 2,
+      "title": "Taal Pattern Explorer",
+      "slug": "taal-pattern-explorer",
+      "description": "Explore and generate complex rhythmic patterns based on traditional Indian taals like Teentaal, Ektaal, and Jhaptaal with customizable tempo and variations from your text descriptions.",
+      "price": 0,
+      "instructor": "me",
+      "isFeatured": true,
+      "image": "/courses/piano.jpg"
+    },
+    {
+      "id": 3,
+      "title": "Carnatic Melody Generator",
+      "slug": "carnatic-melody-generator",
+      "description": "Generate authentic Carnatic music melodies with our specialized tool that understands the nuances of South Indian classical music traditions from simple text prompts.",
+      "price": 0,
+      "instructor": "me",
+      "isFeatured": false,
+      "image": "/courses/vocalist.jpg"
+    },
+    {
+      "id": 4,
+      "title": "Tabla Accompaniment AI",
+      "slug": "tabla-accompaniment-ai",
+      "description": "Create realistic tabla accompaniments for your compositions with our AI that adapts to your melody and understands traditional playing techniques.",
+      "price": 0,
+      "instructor": "me",
+      "isFeatured": true,
+      "image": "/courses/drumming.jpg"
+    },
+    {
+      "id": 5,
+      "title": "Classical Fusion Composer",
+      "slug": "classical-fusion-composer",
+      "description": "Blend Indian classical elements with contemporary sounds using our fusion composer tool that maintains the authenticity of traditional ragas while exploring modern arrangements.",
+      "price": 0,
+      "instructor": "me",
+      "isFeatured": false,
+      "image": "/courses/jazz.jpg"
+    },
+    {
+      "id": 6,
+      "title": "Instrument Mixer",
+      "slug": "instrument-mixer",
+      "description": "Mix and match traditional Indian instruments like sitar, sarod, tabla, veena, and more with modern instruments to create unique musical textures from your preferences.",
+      "price": 0,
+      "instructor": "me",
+      "isFeatured": true,
+      "image": "/courses/music-prod.jpg"
+    },
+    {
+      "id": 7,
+      "title": "Voice to Raga Converter",
+      "slug": "voice-to-raga-converter",
+      "description": "Hum or sing a melody and our AI will transform it into a fully orchestrated raga with appropriate accompaniment and ornamentation.",
+      "price": 0,
+      "instructor": "me",
+      "isFeatured": true,
+      "image": "/courses/song-writing.jpg"
+    },
+    {
+      "id": 8,
+      "title": "Alap Generator",
+      "slug": "alap-generator",
+      "description": "Generate meditative alap sections that gradually introduce your chosen raga with the proper mood and ornamentation based on your text descriptions.",
+      "price": 0,
+      "instructor": "me",
+      "isFeatured": false,
+      "image": "/courses/music-prod.jpg"
+    },
+    {
+      "id": 9,
+      "title": "Tanpura Drone Customizer",
+      "slug": "tanpura-drone-customizer",
+      "description": "Create customized tanpura drone tracks with adjustable tuning, tone, and resonance to provide the perfect background for your raga practice or compositions.",
+      "price": 0,
+      "instructor": "me",
+      "isFeatured": false,
+      "image": "/courses/classical-music.jpg"
+    },
+    {
+      "id": 10,
+      "title": "Gharana Style Adaptor",
+      "slug": "gharana-style-adaptor",
+      "description": "Transform your compositions to reflect different gharanas (stylistic schools) of Hindustani classical music with characteristic ornamentations and phrasings.",
+      "price": 0,
+      "instructor": "me",
+      "isFeatured": true,
+      "image": "/courses/blues.jpg"
+    },
+    {
+      "id": 11,
+      "title": "Lyrics to Dhrupad Generator",
+      "slug": "lyrics-to-dhrupad-generator",
+      "description": "Input your lyrics and generate a traditional Dhrupad composition with appropriate raga and taal settings that respect this ancient vocal style.",
+      "price": 0,
+      "instructor": "me",
+      "isFeatured": false,
+      "image": "/courses/vocalist.jpg"
+    },
+    {
+      "id": 12,
+      "title": "Multi-Instrument Orchestrator",
+      "slug": "multi-instrument-orchestrator",
+      "description": "Automatically arrange your melody for a full ensemble of Indian classical instruments with appropriate roles and interactions between instruments.",
+      "price": 0,
+      "instructor": "me",
+      "isFeatured": true,
+      "image": "/courses/jazz.jpg"
+    },
+    {
+      "id": 13,
+      "title": "Mood-Based Raga Selector",
+      "slug": "mood-based-raga-selector",
+      "description": "Describe your mood or the emotion you want to convey, and our AI will suggest and generate music in the most appropriate raga for that sentiment.",
+      "price": 0,
+      "instructor": "me",
+      "isFeatured": false,
+      "image": "/courses/classical-music.jpg"
+    },
+    {
+      "id": 14,
+      "title": "Time Cycle Variation Generator",
+      "slug": "time-cycle-variation-generator",
+      "description": "Create complex time cycle variations and polyrhythms based on traditional Indian taal structures with our advanced rhythm generation tool.",
+      "price": 0,
+      "instructor": "me",
+      "isFeatured": false,
+      "image": "/courses/drumming.jpg"
+    },
+    {
+      "id": 15,
+      "title": "Jugalbandi Simulator",
+      "slug": "jugalbandi-simulator",
+      "description": "Simulate a musical dialogue between two instruments of your choice, creating an authentic jugalbandi experience with AI-generated call and response patterns.",
+      "price": 0,
+      "instructor": "me",
+      "isFeatured": true,
+      "image": "/courses/guitar.jpg"
+    }
+  ]
+}

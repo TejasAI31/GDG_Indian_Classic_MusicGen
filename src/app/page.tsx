@@ -3,7 +3,13 @@
 import { useUser } from "@clerk/nextjs";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-
+import FeaturedCourses from "../components/FeaturedCourses";
+import WhyChoseUs from "@/components/WhyChoseUs";
+import HeroSection from "@/components/ui/HeroSection";
+import MusicSchoolTestinomials from "@/components/TestinomialCards"
+import UpcomingWebinars from "@/components/UpcomingWebinars";
+import Instructors from "@/components/Instructors";
+import Footer from "@/components/Footer";
 export default function Home() {
   const { user, isSignedIn } = useUser();
   const router = useRouter();
@@ -20,5 +26,13 @@ export default function Home() {
     }
   }, [isSignedIn, user, router]);
 
-  return null; // No UI, since we are redirecting immediately
+  return  (
+    <main className="min-h-screen bg-black/[0.96] antialiased bg-grid-white/[0.02]">
+      <HeroSection/>
+      <FeaturedCourses/>
+      <WhyChoseUs/>      
+      <Instructors/>
+      <Footer/>
+    </main>
+  ); 
 }
