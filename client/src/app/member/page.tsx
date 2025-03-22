@@ -36,12 +36,36 @@ const Page = () => {
     }
   };
 
-  const handleMP3Upload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMP3Upload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       console.log("Uploaded MP3:", file.name);
       setMp3Uploaded(true);
       setUploadedFileName(file.name);
+
+      const formData = new FormData();
+
+      // Single file upload
+      formData.append('file', file);
+
+      try {
+        const response = await fetch('http://127.0.0.1:5000/upload', {
+          method: 'POST',
+          body: formData});
+      
+        if (response.ok) 
+        {
+          // File uploaded successfully
+          console.log('File uploaded!');
+        } 
+        else 
+        {
+          // Handle error
+          console.error('File upload failed.');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      }
     }
   };
 
