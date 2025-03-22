@@ -11,6 +11,7 @@ UPLOAD_FOLDER = r'.\server\app\uploads'
 TEMPLATE_FOLDER = r'.\server\app\templates'
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['TEMPLATE_FOLDER'] = TEMPLATE_FOLDER
 
 @app.route('/')
 def test_backend():
@@ -30,7 +31,7 @@ def upload_file():
             file.save(UPLOAD_FOLDER + '\\' + filename)
             return jsonify({'message': f'File {filename} uploaded successfully'}), 200
         return jsonify({'error': 'An error occurred'}), 500
-    return render_template('upload.html') #Render the upload form
+    # return render_template('upload.html') #Render the upload form
 
     
 if __name__ == '__main__':
