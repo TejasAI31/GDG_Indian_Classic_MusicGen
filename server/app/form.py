@@ -7,8 +7,8 @@ app = Flask(__name__)
 
 CORS(app) # Enables CORS for all routes.
 
-UPLOAD_FOLDER = 'uploads'
-TEMPLATE_FOLDER = 'templates'
+UPLOAD_FOLDER = r'.\server\app\uploads'
+TEMPLATE_FOLDER = r'.\server\app\templates'
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -27,8 +27,8 @@ def upload_file():
         if file:
             filename = secure_filename(file.filename)
             print(filename)
-            file.save(app.config['UPLOAD_FOLDER'] + filename)
-            return jsonify({'message': 'File uploaded successfully'}), 200
+            file.save(UPLOAD_FOLDER + '\\' + filename)
+            return jsonify({'message': f'File {filename} uploaded successfully'}), 200
         return jsonify({'error': 'An error occurred'}), 500
     return render_template('upload.html') #Render the upload form
 
