@@ -30,12 +30,10 @@ function FeaturedCourses() {
                         <div key={course.id} className="flex justify-center">
                             <BackgroundGradient
                                 className="flex flex-col rounded-0 bg-white dark:bg-zinc-900 overflow-hidden h-full max-w-sm">
-                                <div className="p-4 sm:p-6 flex flex-col items-center text-center flex-grow cursor-pointer">
-                                    <p className="text-lg sm:text-xl text-black mt-4 mb-2 dark:text-neutral-200">{course.title}</p>
-                                    <p className="text-sm text-neutral-600 dark:text-neutral-400 flex-grow">{course.description}</p>
-                                    <span>
-                                        Learn More
-                                    </span>
+                                <div className="p-4 sm:p-6 flex flex-col items-center text-center flex-grow cursor-pointer bg-black text-white">
+                                    <p className="text-lg sm:text-xl text-black mt-4 mb-2 text-white">{course.title}</p>
+                                    <p className="text-sm text-neutral-600 dark:text-neutral-200 flex-grow">{course.description}</p>
+                                    
                                 </div>
                             </BackgroundGradient>
                         </div>
