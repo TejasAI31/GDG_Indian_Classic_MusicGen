@@ -1,6 +1,7 @@
 "use client";
-import React, { useState } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useRef } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useUser } from "@clerk/nextjs";
 
 const instruments = [
   { name: "Sitar", image: "/sitar.png" },
@@ -15,10 +16,17 @@ const instruments = [
 ];
 
 const Page = () => {
+  const { user, isLoaded } = useUser();
   const [selectedInstruments, setSelectedInstruments] = useState<{ [key: string]: number }>({});
   const [selected, setSelected] = useState<string[]>([]);
   const [mp3Uploaded, setMp3Uploaded] = useState<boolean>(false);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showAudioPlayer, setShowAudioPlayer] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleInstrumentClick = (name: string) => {
     if (!mp3Uploaded) {
@@ -39,39 +47,65 @@ const Page = () => {
   const handleMP3Upload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      console.log("Uploaded MP3:", file.name);
-      setMp3Uploaded(true);
-      setUploadedFileName(file.name);
+      setSelectedFile(file);
+    }
+  };
 
-      const formData = new FormData();
+  const confirmUpload = async () => {
+    if (!selectedFile) return;
 
-      // Single file upload
-      formData.append('file', file);
-
-      try {
-        const response = await fetch('http://127.0.0.1:5000/upload', {
-          method: 'POST',
-          body: formData});
+    console.log("Uploaded MP3:", selectedFile.name);
+    setMp3Uploaded(true);
+    setUploadedFileName(selectedFile.name);
+    
+    // Create temporary URL for preview
+    const tempUrl = URL.createObjectURL(selectedFile);
+    setAudioUrl(tempUrl);
+    
+    // Upload to server
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    
+    try {
+      const response = await fetch('http://127.0.0.1:5000/upload', {
+        method: 'POST',
+        body: formData
+      });
       
-        if (response.ok) 
-        {
-          // File uploaded successfully
-          console.log('File uploaded!');
-        } 
-        else 
-        {
-          // Handle error
-          console.error('File upload failed.');
-        }
-      } catch (error) {
-        console.error('Error:', error);
+      if (!response.ok) {
+        throw new Error('Upload failed');
       }
+    } catch (error) {
+      console.error('Error:', error);
+      setMp3Uploaded(false);
+      setUploadedFileName(null);
+    }
+
+    setSelectedFile(null);
+    setShowConfirmDialog(false);
+  };
+
+  const handlePreview = () => {
+    if (selectedFile) {
+      const tempUrl = URL.createObjectURL(selectedFile);
+      setAudioUrl(tempUrl);
+      setShowAudioPlayer(true);
+      setIsPlaying(true);
+    }
+  };
+
+  const handleCancel = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
   const handleMP3Cut = () => {
     setMp3Uploaded(false);
     setUploadedFileName(null);
+    setIsPlaying(false);
+    setShowAudioPlayer(false);
   };
 
   const logSelection = () => {
@@ -81,18 +115,15 @@ const Page = () => {
   };
 
   return (
-    <motion.div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-8"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5 }}>
-      {/* Header Section */}
-      <motion.h1 className="text-5xl font-bold mb-12 text-center tracking-tight"
-                 whileHover={{ scale: mp3Uploaded ? 1 : 1.02 }}
-                 transition={{ duration: 0.3 }}>
+    <motion.div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-8">
+      <motion.h1 
+        className="text-5xl font-bold mb-12 text-center tracking-tight"
+        whileHover={{ scale: mp3Uploaded ? 1 : 1.02 }}
+        transition={{ duration: 0.3 }}
+      >
         Music Instrument Dashboard
       </motion.h1>
 
-      {/* Instrument Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 mb-12">
         {instruments.map((instrument) => (
           <motion.div
@@ -101,7 +132,6 @@ const Page = () => {
             className="relative group cursor-pointer rounded-xl overflow-hidden shadow-lg hover:shadow-xl"
             onClick={() => handleInstrumentClick(instrument.name)}
           >
-            {/* Instrument Card */}
             <motion.div
               className="relative w-full aspect-square rounded-lg overflow-hidden"
               whileHover={{ scale: mp3Uploaded ? 1 : 1.05 }}
@@ -112,13 +142,12 @@ const Page = () => {
                 src={instrument.image}
                 alt={instrument.name}
                 className={`w-full h-full object-cover transition-transform duration-300 ${
-                  selected.includes(instrument.name) 
-                    ? 'brightness-75 sepia' 
+                  selected.includes(instrument.name)
+                    ? 'brightness-75 sepia'
                     : 'brightness-100'
                 }`}
               />
               
-              {/* Selection Overlay */}
               {selected.includes(instrument.name) && (
                 <motion.div
                   layoutId={`overlay-${instrument.name}`}
@@ -136,8 +165,7 @@ const Page = () => {
                   </svg>
                 </motion.div>
               )}
-              
-              {/* Hover Effects */}
+
               {!mp3Uploaded && (
                 <>
                   <motion.div
@@ -146,7 +174,6 @@ const Page = () => {
                     whileHover={{ borderColor: 'white', boxShadow: '0px 0px 15px rgba(255, 255, 255, 0.5)' }}
                     transition={{ duration: 0.3 }}
                   />
-                  
                   <motion.div
                     className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4"
                     initial={{ opacity: 0 }}
@@ -160,8 +187,7 @@ const Page = () => {
                 </>
               )}
             </motion.div>
-
-            {/* Instrument Name */}
+            
             <motion.p
               className="mt-4 text-center font-semibold text-lg transition-colors"
               style={{
@@ -174,23 +200,19 @@ const Page = () => {
         ))}
       </div>
 
-      {/* BPM Controls Section */}
-      <motion.div className="mb-12 space-y-8"
-                 initial={{ opacity: 0, y: 20 }}
-                 animate={{ opacity: 1, y: 0 }}
-                 transition={{ duration: 0.5, delay: 0.2 }}>
+      <motion.div className="mb-12 space-y-8">
         <h2 className="text-3xl font-bold mb-6">Adjust Tempo</h2>
-        
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {instruments.map((instrument) => (
-            <motion.div key={instrument.name}
-                       className="space-y-2"
-                       whileHover={{ scale: mp3Uploaded ? 1 : 1.02 }}
-                       transition={{ duration: 0.3 }}>
+            <motion.div
+              key={instrument.name}
+              className="space-y-2"
+              whileHover={{ scale: mp3Uploaded ? 1 : 1.02 }}
+              transition={{ duration: 0.3 }}
+            >
               <label className="block text-sm font-medium">
                 {instrument.name}
               </label>
-              
               <input
                 type="range"
                 min="1"
@@ -200,7 +222,6 @@ const Page = () => {
                 className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
                 disabled={!selected.includes(instrument.name) || mp3Uploaded}
               />
-              
               <div className="flex justify-between text-sm">
                 <span>{selectedInstruments[instrument.name] || 60} BPM</span>
                 {selected.includes(instrument.name) && (
@@ -212,38 +233,67 @@ const Page = () => {
         </div>
       </motion.div>
 
-      {/* MP3 Upload Section */}
-      <motion.div className="mb-12 space-y-4"
-                 initial={{ opacity: 0, y: 20 }}
-                 animate={{ opacity: 1, y: 0 }}
-                 transition={{ duration: 0.5, delay: 0.4 }}>
+      <motion.div className="mb-12 space-y-4">
         <h2 className="text-3xl font-bold mb-4">Upload Music Track</h2>
-        
-        <input
-          type="file"
-          accept=".mp3"
-          onChange={handleMP3Upload}
+        <button
+          onClick={() => fileInputRef.current?.click()}
           className={`w-full px-4 py-3 rounded-lg border-2 border-gray-700 bg-gray-800 ${
             mp3Uploaded ? 'opacity-50 cursor-not-allowed' : ''
           }`}
           disabled={mp3Uploaded}
+        >
+          {uploadedFileName ? uploadedFileName : 'Upload MP3'}
+        </button>
+        
+        <input
+          type="file"
+          accept=".mp3"
+          ref={fileInputRef}
+          onChange={handleMP3Upload}
+          style={{ display: 'none' }}
         />
         
+        {selectedFile && !mp3Uploaded && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex gap-4 mt-4"
+          >
+            <span className="text-sm text-gray-400 flex-grow">{selectedFile.name}</span>
+            <button
+              onClick={() => setShowConfirmDialog(true)}
+              className="ml-2 text-green-500 hover:text-green-600 font-medium"
+            >
+              Upload 📤
+            </button>
+            <button
+              onClick={handlePreview}
+              className="ml-2 text-blue-500 hover:text-blue-600 font-medium"
+            >
+              Preview 🎵
+            </button>
+            <button
+              onClick={handleCancel}
+              className="ml-2 text-red-500 hover:text-red-600 font-medium"
+            >
+              Cancel ❌
+            </button>
+          </motion.div>
+        )}
+
         {uploadedFileName && (
-          <motion.div className="mt-4 flex items-center justify-between rounded-lg bg-gray-800 p-4"
-                     initial={{ opacity: 0 }}
-                     animate={{ opacity: 1 }}
-                     transition={{ duration: 0.3 }}>
+          <motion.div className="flex gap-4">
             <span className="text-sm text-gray-400">{uploadedFileName}</span>
-            <button onClick={handleMP3Cut}
-                    className="ml-2 text-red-500 hover:text-red-600 font-medium">
+            <button
+              onClick={handleMP3Cut}
+              className="ml-2 text-red-500 hover:text-red-600 font-medium"
+            >
               Cancel Upload ❌
             </button>
           </motion.div>
         )}
       </motion.div>
 
-      {/* Log Selection Button */}
       <motion.button
         onClick={logSelection}
         className={`w-full py-4 px-6 rounded-lg text-xl font-bold transition-all duration-300 ${
@@ -256,6 +306,88 @@ const Page = () => {
       >
         Log Selection
       </motion.button>
+
+      <AnimatePresence>
+        {showConfirmDialog && (
+          <motion.div
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-gray-800 rounded-xl p-6 max-w-md w-full"
+              layoutId="confirmDialog"
+            >
+              <h3 className="text-xl font-bold mb-4">Confirm Upload</h3>
+              <p className="mb-4">Are you sure you want to upload this MP3 file?</p>
+              <div className="flex justify-end gap-4">
+                <button
+                  onClick={() => setShowConfirmDialog(false)}
+                  className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmUpload}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors"
+                >
+                  Confirm Upload
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showAudioPlayer && (
+          <motion.div
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-gray-800 rounded-xl p-6 max-w-md w-full"
+              layoutId="audioPlayer"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <button
+                  onClick={() => setIsPlaying(!isPlaying)}
+                  className="p-2 rounded-full hover:bg-gray-700 transition-colors"
+                >
+                  {isPlaying ? '⏸️' : '▶️'}
+                </button>
+                <span className="font-medium">{uploadedFileName || 'Audio Track'}</span>
+              </div>
+              
+              <audio
+                src={audioUrl || ''}
+                controls
+                className="w-full"
+                ref={(audio) => {
+                  if (audio && isPlaying) {
+                    audio.play();
+                  } else if (audio) {
+                    audio.pause();
+                  }
+                }}
+              />
+              
+              <button
+                onClick={() => {
+                  setIsPlaying(false);
+                  setShowAudioPlayer(false);
+                }}
+                className="mt-4 w-full py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Close
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

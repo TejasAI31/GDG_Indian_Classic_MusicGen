@@ -14,7 +14,12 @@ export default clerkMiddleware(async (auth, req) => {
     (await auth()).sessionClaims?.metadata?.role !== "admin"
   ) {
     const url = new URL("/member", req.url);
-    return NextResponse.redirect(url);
+    return new NextResponse(null, {
+      status: 302, // or 307 for a temporary redirect
+      headers: {
+          Location: url.toString(),
+      },
+  });
   }
 
   if (!userId && !isPublicRoute(req)) {
