@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useUser } from "@clerk/nextjs";
 
@@ -14,7 +14,20 @@ const instruments = [
   { name: "Shehnai", image: "/shehnai.png" },
   { name: "Tanpura", image: "/tanpura.png" },
 ];
-
+interface UserData {
+  id: string | null;
+  email: string | null;
+  fullName: string | null;
+}
+interface AudioProcessingResponse {
+  message: string;
+  input_filename?: string;
+  output_filename?: string;
+  output_path?: string;
+  user_id?: string;
+  error?: string;
+  details?: string;
+}
 const Page = () => {
   const { user, isLoaded } = useUser();
   const [selectedInstruments, setSelectedInstruments] = useState<{ [key: string]: number }>({});
@@ -27,7 +40,127 @@ const Page = () => {
   const [showAudioPlayer, setShowAudioPlayer] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [waveformPath, setWaveformPath] = useState<string | null>(null);
+  const [harmonicPath, setHarmonicPath] = useState<string | null>(null);
+  const [showWaveform, setShowWaveform] = useState(false);
+  const userId= user?.id || null;
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [isAnalysisMinimized, setIsAnalysisMinimized] = useState(false);
+const [analysisImages, setAnalysisImages] = useState<{
+  waveform: string | null;
+  harmonic: string | null;
+}>({ waveform: null, harmonic: null });
+const handleShowAnalysis = async () => {
+  try {
+    if (!selectedFile || !userId) {
+      console.error("No file selected or user ID missing");
+      return;
+    }
+    
+    setShowAnalysis(true);
+    
+    // First check if the file has been uploaded
+    if (!mp3Uploaded) {
+      console.error("Please upload the file first");
+      return;
+    }
+    
+    // Call the process-audio endpoint
+    const response = await fetch(`http://127.0.0.1:5000/process-audio/${userId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    console.log("Audio processing result:", result);
+    
+    if (result.status === 'success') {
+      // Add timestamp to prevent browser caching
+      const timestamp = Date.now();
+      
+      // Set the plot URLs from the response
+      setAnalysisImages({
+        waveform: `http://127.0.0.1:5000${result.plot_urls.waveform}?t=${timestamp}`,
+        harmonic: `http://127.0.0.1:5000${result.plot_urls.harmonic}?t=${timestamp}`,
+      });
+    } else {
+      console.error("Error processing audio:", result.error || "Unknown error");
+    }
+  } catch (error) {
+    console.error('Error analyzing audio:', error);
+  }
+};
+const HandleUserUpload = async () => {
+  try {
+    if (isLoaded && user) {
+      const userData = {
+        id: user.id || null,
+        email: user.emailAddresses?.[0]?.emailAddress || null,
+        fullName: user.fullName || null,
+      };
 
+      // First check if user exists
+      const checkResponse = await fetch('http://127.0.0.1:5000/check_user', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id: userData.id }),
+      });
+
+      if (!checkResponse.ok) {
+        throw new Error('User check failed');
+      }
+
+      const checkResult = await checkResponse.json();
+
+      if (checkResult.exists) {
+        console.log('User already exists');
+        return; // Exit the function if user exists
+      }
+
+      // If user doesn't exist, proceed with upload
+      const response = await fetch('http://127.0.0.1:5000/user', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (!response.ok) {
+        console.log('Response Status:', response.status);
+        throw new Error('Upload failed');
+      }
+
+      const result = await response.json();
+      console.log(result.message);
+    } else {
+      console.warn('User not loaded or missing data');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+  }
+};
+
+const hasUploaded = useRef(false);
+
+useEffect(() => {
+  if (!hasUploaded.current) {
+    HandleUserUpload();
+    hasUploaded.current = true;
+  }
+}, []);
+
+ 
   const handleInstrumentClick = (name: string) => {
     if (!mp3Uploaded) {
       if (selected.includes(name)) {
@@ -52,39 +185,49 @@ const Page = () => {
   };
 
   const confirmUpload = async () => {
-    if (!selectedFile) return;
+    const userData = {
+      id: user?.id || null,
+      email: user?.emailAddresses?.[0]?.emailAddress || null,
+      fullName: user?.fullName || null,
+    }
+  
+    if (!selectedFile || !userData.id) return
 
-    console.log("Uploaded MP3:", selectedFile.name);
-    setMp3Uploaded(true);
-    setUploadedFileName(selectedFile.name);
-    
+    console.log("Uploading MP3:", selectedFile.name)
+    setMp3Uploaded(true)
+    setUploadedFileName(selectedFile.name)
+
     // Create temporary URL for preview
-    const tempUrl = URL.createObjectURL(selectedFile);
-    setAudioUrl(tempUrl);
-    
-    // Upload to server
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-    
+    const tempUrl = URL.createObjectURL(selectedFile)
+    setAudioUrl(tempUrl)
+
+    // Upload to server with user ID in the URL path
+    const formData = new FormData()
+    formData.append("file", selectedFile)
+
     try {
-      const response = await fetch('http://127.0.0.1:5000/upload', {
-        method: 'POST',
-        body: formData
-      });
-      
+      // Use the user ID in the URL path
+      const response = await fetch(`http://127.0.0.1:5000/upload/${userData.id}`, {
+        method: "POST",
+        body: formData,
+      })
+
       if (!response.ok) {
-        throw new Error('Upload failed');
+        throw new Error("Upload failed")
       }
+
+      const result = await response.json()
+      console.log("Upload successful:", result)
     } catch (error) {
-      console.error('Error:', error);
-      setMp3Uploaded(false);
-      setUploadedFileName(null);
+      console.error("Error:", error)
+      setMp3Uploaded(false)
+      setUploadedFileName(null)
     }
 
-    setSelectedFile(null);
-    setShowConfirmDialog(false);
-  };
-
+    //setSelectedFile(null)
+    setShowConfirmDialog(false)
+  }
+  
   const handlePreview = () => {
     if (selectedFile) {
       const tempUrl = URL.createObjectURL(selectedFile);
@@ -93,7 +236,7 @@ const Page = () => {
       setIsPlaying(true);
     }
   };
-
+ 
   const handleCancel = () => {
     setSelectedFile(null);
     if (fileInputRef.current) {
@@ -306,6 +449,19 @@ const Page = () => {
       >
         Log Selection
       </motion.button>
+      
+      <motion.button
+  onClick={handleShowAnalysis}
+  className={`w-full py-4 px-6 rounded-lg text-xl font-bold transition-all duration-300 ${
+    mp3Uploaded ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 cursor-not-allowed'
+  }`}
+  disabled={!mp3Uploaded}
+  whileHover={{ scale: mp3Uploaded ? 1.02 : 1 }}
+  whileTap={{ scale: mp3Uploaded ? 0.98 : 1 }}
+  transition={{ duration: 0.3 }}
+>
+  Show Audio Analysis
+</motion.button>
 
       <AnimatePresence>
         {showConfirmDialog && (
@@ -387,6 +543,45 @@ const Page = () => {
             </motion.div>
           </motion.div>
         )}
+        {showAnalysis && (
+  <div className="mt-8 space-y-6">
+    <div className="flex justify-between items-center">
+      <h3 className="text-2xl font-bold">Audio Analysis</h3>
+      <button
+        onClick={() => setIsAnalysisMinimized(!isAnalysisMinimized)}
+        className="p-2 rounded-full hover:bg-gray-700 transition-colors"
+      >
+        {isAnalysisMinimized ? '⬇️ Show' : '⬆️ Hide'}
+      </button>
+    </div>
+    
+    {!isAnalysisMinimized && (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {analysisImages.waveform && (
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h4 className="text-lg font-medium mb-2">Waveform</h4>
+            <img 
+              src={analysisImages.waveform} 
+              alt="Waveform analysis" 
+              className="w-full h-auto rounded"
+            />
+          </div>
+        )}
+        
+        {analysisImages.harmonic && (
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h4 className="text-lg font-medium mb-2">Harmonic/Percussive</h4>
+            <img 
+              src={analysisImages.harmonic} 
+              alt="Harmonic analysis" 
+              className="w-full h-auto rounded"
+            />
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+)}
       </AnimatePresence>
     </motion.div>
   );
