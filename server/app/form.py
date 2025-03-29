@@ -5,9 +5,6 @@ import os
 import logging
 from flask_pymongo import PyMongo
 
-from DataExtractor import extract_feature
-import threading
-
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -86,9 +83,6 @@ def upload_file():
             os.makedirs(os.path.dirname(upload_path), exist_ok=True)
             file.save(upload_path)
             logger.info(f"File saved successfully: {upload_path}")
-
-            extract_feature(upload_path) 
-
             return jsonify({
                 'message': f'File {filename} uploaded successfully',
                 'filename': filename,
