@@ -1,2 +1,7 @@
 flask
 flask-Cors
+numpy
+
+matplotlib
+librosa
+flask_pymongo
