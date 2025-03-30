@@ -1,5 +1,6 @@
 from bson import ObjectId
 from flask import Flask, request, jsonify, render_template, send_file, send_from_directory
+from pymongo import ReturnDocument
 from werkzeug.utils import secure_filename
 from flask_cors import CORS
 import os
@@ -37,7 +38,7 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)  # Ensure outputs folder exists
 # Configure CORS
 cors_config = {
     "origins": ["http://localhost:3000"],
-    "methods": ["GET", "POST", "OPTIONS"],
+    "methods": ["GET", "POST", "DELETE","OPTIONS"],
     "allow_headers": [
         "Content-Type",
         "Authorization",
@@ -319,8 +320,58 @@ def get_user_files():
     except Exception as e:
         logger.error(f"Error fetching user files: {str(e)}")
         return jsonify({'error': 'Failed to fetch files'}), 500
-
-# New testing route for JSON data
+@app.route('/files/<file_id>', methods=['DELETE'])
+def delete_file(file_id):
+    try:
+        logger.info(f"Deleting file with ID: {file_id}")
+        user_id = request.args.get('userId')
+        
+        if not user_id:
+            return jsonify({'error': 'User ID is required'}), 400
+        
+        # Convert string ID to ObjectId
+        try:
+            file_id_obj = ObjectId(file_id)
+        except:
+            logger.warning(f"Invalid file ID format: {file_id}")
+            return jsonify({'error': 'Invalid file ID format'}), 400
+        
+        # Find the user
+        user = mongo.db.users.find_one({'id': user_id})
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Check if the file exists and belongs to the user
+        file_exists = False
+        for file in user.get('audio_files', []):
+            if str(file.get('gridfs_id')) == str(file_id_obj):
+                file_exists = True
+                break
+        
+        if not file_exists:
+            return jsonify({'error': 'File not found or does not belong to user'}), 404
+        
+        # Delete file from GridFS
+        if fs.exists({"_id": file_id_obj}):
+            fs.delete(file_id_obj)
+        
+        # Remove file reference from user document
+        result = mongo.db.users.update_one(
+            {'id': user_id},
+            {'$pull': {'audio_files': {'gridfs_id': file_id_obj}}}
+        )
+        
+        if result.modified_count == 0:
+            return jsonify({'error': 'Failed to update user document'}), 500
+        
+        return jsonify({'message': 'File deleted successfully'}), 200
+        
+    except Exception as e:
+        logger.error(f"File deletion failed: {str(e)}")
+        return jsonify({
+            'error': 'File deletion failed',
+            'details': str(e)
+        }), 500
 @app.route('/test-json', methods=['POST'])
 def test_json():
     try:

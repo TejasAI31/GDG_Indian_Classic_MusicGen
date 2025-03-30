@@ -2,11 +2,13 @@ import {
   SignInButton,
   SignOutButton,
   SignUpButton,
-  // UserButton,
   SignedIn,
   SignedOut,
 } from "@clerk/nextjs";
 import Link from "next/link";
+import { Upload, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
 export const Navigation = () => {
   return (
     <nav className="bg-black border-b border-gray-800">
@@ -20,26 +22,32 @@ export const Navigation = () => {
           <div className="flex items-center gap-4">
             <SignedOut>
               <SignInButton>
-                <button className="px-2 py-1 text-sm border border-gray-500 text-white hover:bg-gray-700 transition-colors  rounded-md">
+                <Button variant="outline" className="text-white hover:text-white">
                   Sign In
-                </button>
+                </Button>
               </SignInButton>
               <SignUpButton>
-                <button className="px-2 py-1 text-sm border border-gray-500 text-white hover:bg-gray-700 transition-colors  rounded-md">
+                <Button variant="outline" className="text-white hover:text-white">
                   Sign Up
-                </button>
+                </Button>
               </SignUpButton>
             </SignedOut>
             <SignedIn>
+              <Link href="/uploads">
+                <Button variant="outline" className="text-white hover:text-white">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Uploads
+                </Button>
+              </Link>
               <Link href="/user-profile">
-                <span className="text-white hover:text-gray-400 transition-colors duration-200 px-2 py-1 rounded-md">
-                  Profile
-                </span>
+                <Button variant="ghost" className="text-white hover:text-white">
+                  <User className="h-5 w-5" />
+                </Button>
               </Link>
               <SignOutButton>
-                <button className="px-2 py-1 text-sm border border-gray-500 text-white hover:bg-gray-700 transition-colors  rounded-md">
+                <Button variant="outline" className="text-white hover:text-white">
                   Sign Out
-                </button>
+                </Button>
               </SignOutButton>
             </SignedIn>
           </div>
