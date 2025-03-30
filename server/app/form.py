@@ -9,9 +9,7 @@ from flask_pymongo import PyMongo
 import gridfs
 import io
 from datetime import datetime
-import threading
-import time
-import json
+
 
 from DataExtractor import DataExtractor  # Assuming DataExtractor is in the same directory
 
