@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Connect to Musicgen database
+#app.config['MONGO_URI'] = "mongodb+srv://omeshmehta03:Mav6zX7W8tpVyTSo@cluster0.9xnlqg6.mongodb.net/Music?retryWrites=true&w=majority"**#this is for production
+#app.config['MONGO_URI'] = "mongodb://localhost:27017/Musicgen"   ****this is for local testing****
 app.config['MONGO_URI'] = "mongodb://localhost:27017/Musicgen"
 mongo = PyMongo(app)
 
@@ -99,43 +101,42 @@ def processing_complete_callback(user_id, result):
 def process_audio(user_id):
     try:
         logger.info(f"Processing audio for user: {user_id}")
-        
-        # Get the latest uploaded file for this user from MongoDB
         user = mongo.db.users.find_one({'id': user_id})
         if not user:
             logger.error(f"User {user_id} not found")
             return jsonify({'error': 'User not found'}), 404
-            
+        
         audio_files = user.get('audio_files', [])
         if not audio_files:
             logger.error(f"No audio files found for user {user_id}")
             return jsonify({'error': 'No audio files found for user'}), 404
-            
-        # Get the latest file (sort by uploaded_at timestamp)
+        
+        # Get the latest file
         latest_file = sorted(audio_files, key=lambda x: x['uploaded_at'], reverse=True)[0]
         file_path = latest_file['file_path']
         filename = latest_file['filename']
         
-        if not os.path.exists(file_path):
-            logger.error(f"File {file_path} not found on disk")
-            
-            # Try to get it from GridFS
+        # Create user directory if it doesn't exist
+        user_folder = os.path.join(UPLOAD_FOLDER, user_id)
+        os.makedirs(user_folder, exist_ok=True)
+        
+        # Clean up existing files in the folder
+        for existing_file in os.listdir(user_folder):
+            existing_path = os.path.join(user_folder, existing_file)
             try:
-                gridfs_id = latest_file['gridfs_id']
-                grid_out = fs.get(gridfs_id)
-                
-                # Create user directory if it doesn't exist
-                user_folder = os.path.join(UPLOAD_FOLDER, user_id)
-                os.makedirs(user_folder, exist_ok=True)
-                
-                # Save to disk
-                file_path = os.path.join(user_folder, filename)
-                with open(file_path, 'wb') as f:
-                    f.write(grid_out.read())
-                logger.info(f"Restored file from GridFS to {file_path}")
+                if os.path.isfile(existing_path):
+                    os.unlink(existing_path)
+                    logger.info(f"Deleted existing file: {existing_path}")
             except Exception as e:
-                logger.error(f"Failed to retrieve file from GridFS: {str(e)}")
-                return jsonify({'error': 'File not found'}), 404
+                logger.error(f"Error deleting file {existing_path}: {str(e)}")
+        
+        # Process the audio file
+        if not os.path.exists(file_path):
+            gridfs_id = latest_file['gridfs_id']
+            grid_out = fs.get(gridfs_id)
+            with open(file_path, 'wb') as f:
+                f.write(grid_out.read())
+            logger.info(f"Restored file from GridFS to {file_path}")
         
         # Process the audio
         logger.info(f"Processing file: {file_path}")
@@ -151,8 +152,6 @@ def process_audio(user_id):
         harmonic_url = f"/outputs/{user_id}/harmonic_percussive.png"
         
         logger.info(f"Successfully processed audio for user {user_id}")
-        
-        # Return success response with plot URLs
         return jsonify({
             'status': 'success',
             'message': 'Audio processed successfully',
