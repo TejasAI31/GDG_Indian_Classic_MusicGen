@@ -5,6 +5,23 @@ import os
 import librosa
 import librosa.display
 from functools import lru_cache
+from xgboost import XGBClassifier
+
+Models=[]
+Busy=[]
+
+GenreDict={0:"Bengali",
+           1:"Bhangra",
+           2:"Carnatic",
+           3:"Dandiya",
+           4:"Hindustani",
+           5:"Kolattam",
+           6:"Manipuri",
+           7:"Nepali",
+           8:"Rajasthani",
+           9:"Uttarakhandi",
+           10:"Assamese"
+           }
 
 class DataExtractor:
     def __init__(self, n_mfcc=20, base_output_dir=None):
@@ -206,3 +223,38 @@ class DataExtractor:
         plt.close()
         
         return output_path
+    
+def AnalyseGenre(path):
+    modelnum=-1
+    for i in range(len(Busy)):
+        if(not Busy[i]):
+            modelnum=i
+            break
+    
+    if(modelnum==-1):
+        return modelnum
+    
+    Busy[modelnum]=1
+
+    Extractor=DataExtractor()
+    Extractor.load_file(path)
+    Extractor.feature_extract()
+    features=Extractor.get_data()
+    features=features.reshape(1,120)
+    print(features.shape)
+    genre=Models[modelnum].predict(features)
+    Busy[modelnum]=0
+    return GenreDict[genre[0]]
+
+def InitializeModels(num):
+    global Models,Busy
+
+    for i in range(num):
+        GenreModel=XGBClassifier()  
+        GenreModel.load_model("server\models\GenreModel.json")
+        Models.append(GenreModel)
+        Busy.append(0)
+
+if __name__=="__main__":
+    InitializeModels(10)
+    print(AnalyseGenre("2.mp3"))
