@@ -22,6 +22,7 @@ interface AudioFile {
   content_type?: string
 }
 export default function AudioFilesPage() {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const { user, isLoaded } = useUser()
   const [audioFiles, setAudioFiles] = useState<AudioFile[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -93,7 +94,7 @@ export default function AudioFilesPage() {
       setNowPlaying(idString)
       console.log("Fetching file with ID:", idString)
       // Use the extracted ObjectId string
-      const response = await axios.get(`http://localhost:5000/files/${idString}`, {
+      const response = await axios.get(`${API_URL}/files/${idString}`, {
         responseType: "blob",
       })
       if (response.status !== 200) {
@@ -165,7 +166,7 @@ export default function AudioFilesPage() {
       }
 
       setIsLoading(true)
-      const response = await axios.delete(`http://localhost:5000/files/${getObjectIdString(fileId)}`, {
+      const response = await axios.delete(`${API_URL}/files/${getObjectIdString(fileId)}`, {
         params: { userId: userData.id },
       })
 
@@ -207,7 +208,7 @@ export default function AudioFilesPage() {
     const fetchAudioFiles = async () => {
       try {
         setIsLoading(true)
-        const response = await axios.get("http://localhost:5000/files", {
+        const response = await axios.get(`${API_URL}/files`, {
           params: { userId: userData.id },
         })
         // Process the response data to ensure we have proper ObjectId handling

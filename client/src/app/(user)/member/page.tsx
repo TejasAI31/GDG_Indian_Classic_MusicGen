@@ -19,6 +19,7 @@ interface UserData {
 }
 
 const Index = () => {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const { user, isLoaded } = useUser()
   const HandleUserUpload = async () => {
     try {
@@ -30,7 +31,7 @@ const Index = () => {
         }
 
         // First check if user exists
-        const checkResponse = await fetch("http://127.0.0.1:5000/check_user", {
+        const checkResponse = await fetch(`${API_URL}/check_user`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -50,7 +51,7 @@ const Index = () => {
         }
 
         // If user doesn't exist, proceed with upload
-        const response = await fetch("http://127.0.0.1:5000/user", {
+        const response = await fetch(`${API_URL}/user`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

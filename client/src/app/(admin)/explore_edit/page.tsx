@@ -38,6 +38,8 @@ const AudioUploadInterface = () => {
    const [mp3Uploaded, setMp3Uploaded] = useState<boolean>(false);
     const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
      const [audioUrl, setAudioUrl] = useState<string | null>(null);
+     const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
      const[isAdmin, setIsAdmin] = useState<boolean>(true)
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -77,7 +79,7 @@ const AudioUploadInterface = () => {
     
     try {
         // Use the user ID and role in the URL path
-        const response = await fetch(`http://127.0.0.1:5000/upload-edit/${userData.id}/${userData.role}`, {
+        const response = await fetch(`${API_URL}/upload-edit/${userData.id}/${userData.role}`, {
             method: "POST",
             body: formData,
         })

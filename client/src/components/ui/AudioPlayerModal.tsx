@@ -5,7 +5,8 @@ interface MusicPlayerProps {
   audioSrc: string;
 }
 
-const MusicPlayer = ({ audioSrc }: MusicPlayerProps) => {
+const MusicPlayer = () => {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -15,7 +16,7 @@ const MusicPlayer = ({ audioSrc }: MusicPlayerProps) => {
     setError(null);
 
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/random-audio');
+      const response = await fetch(`${API_URL}/api/random-audio`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch audio');

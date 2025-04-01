@@ -61,6 +61,7 @@ const pulseAnimation = {
 //********** */
 const Index = () => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   const [currentWord, setCurrentWord] = useState(0);
   const words = ["Harmony", "Melody", "Rhythm", "Tradition", "Expression"];
@@ -333,7 +334,7 @@ const Index = () => {
                  <line x1="6" y1="6" x2="18" y2="18"></line>
                </svg>
              </button>
-             <MusicPlayer audioSrc="/audio/output_028.mp3" />
+             <MusicPlayer />
            </motion.div>
          </motion.div>
     )
