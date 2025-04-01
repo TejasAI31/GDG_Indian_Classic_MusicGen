@@ -100,7 +100,7 @@ const Index = () => {
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
         {/* Background Elements */}
-        <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 z-0 ">
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-radial from-silk to-background opacity-80"></div>
           
           {/* Animated circles with Framer Motion */}

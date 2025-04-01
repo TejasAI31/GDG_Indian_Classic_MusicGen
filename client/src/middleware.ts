@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 // const isProtectedRoute = createRouteMatcher(["/user-profile"]);
 const isPublicRoute = createRouteMatcher(["/", "/sign-in(.*)", "/sign-up(.*)"]);
 
-const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
+const isAdminRoute = createRouteMatcher(["/admin(.*)","/explore_edit(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
   const { userId, redirectToSignIn } = await auth();

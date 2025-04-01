@@ -1,6 +1,6 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { removeRole, setRole } from "./actions";
-
+import Link from "next/link";
 export default async function Admin() {
   const client = await clerkClient();
 
@@ -57,6 +57,8 @@ export default async function Admin() {
         </div>
         );
       })}
+      <Link href="/explore_edit">
+      <div className="text-white text-center flex justify-center h-[40rem] items-center cursor-pointer"> Go to explore edits </div></Link>
     </>
   );
 }

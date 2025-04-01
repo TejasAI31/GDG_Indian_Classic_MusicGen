@@ -1,3 +1,4 @@
+import random
 from bson import ObjectId
 from flask import Flask, request, jsonify, render_template, send_file, send_from_directory
 from pymongo import ReturnDocument
@@ -9,7 +10,7 @@ from flask_pymongo import PyMongo
 import gridfs
 import io
 from datetime import datetime
-
+import random
 
 from DataExtractor import DataExtractor  # Assuming DataExtractor is in the same directory
 
@@ -24,10 +25,13 @@ app = Flask(__name__)
 #app.config['MONGO_URI'] = "mongodb://localhost:27017/Musicgen"   ****this is for local testing****
 app.config['MONGO_URI'] = "mongodb://localhost:27017/Musicgen"
 mongo = PyMongo(app)
+db = mongo.db
+# Define metadata collection
+metadata_collection = mongo.db.selected_audios
 
 # Set up GridFS
 fs = gridfs.GridFS(mongo.db)
-
+ALLOWED_EXTENSIONS = {'mp3'}
 # Define absolute paths for better reliability
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
@@ -66,7 +70,7 @@ def after_request(response):
 def handle_exception(error):
     logger.error(f"Error: {str(error)}")
     return jsonify({"error": str(error)}), 500
-
+ALLOWED_EXTENSIONS = {'mp3'}
 @app.route('/')
 def index():
     try:
@@ -78,23 +82,87 @@ def index():
             'error': 'Template rendering failed',
             'details': str(e)
         }), 500
+# Audio Upload Route
+@app.route('/api/upload-audio/<user_id>', methods=['POST'])
+def upload_audio(user_id):
+    try:
+        logger.info(f"New audio upload request received for user: {user_id}")
+        
+        # Validate file presence
+        if 'audio' not in request.files:
+            logger.warning("No audio file part in request")
+            return jsonify({'error': 'No audio file provided'}), 400
+        
+        audio_file = request.files['audio']
+        if audio_file.filename == '':
+            logger.warning("Empty filename provided")
+            return jsonify({'error': 'No selected file'}), 400
+        
+        # Validate file type
+        if not audio_file.content_type.startswith('audio/'):
+            logger.warning(f"Invalid file type: {audio_file.content_type}")
+            return jsonify({'error': 'File must be an audio file'}), 400
+        
+        # Validate file size (50MB limit)
+        if audio_file.content_length > 50 * 1024 * 1024:
+            return jsonify({'error': 'File size exceeds 50MB limit'}), 400
+        
+        # Get metadata from form
+        description = request.form.get('description', '')
+        tags = request.form.get('tags', '').split(',') if request.form.get('tags') else []
+        
+        # Create metadata document
+        metadata = {
+            'user_id': user_id,
+            'filename': secure_filename(audio_file.filename),
+            'original_filename': audio_file.filename,
+            'content_type': audio_file.content_type,
+            'description': description,
+            'tags': tags,
+            'uploaded_at': datetime.utcnow()
+        }
+        
+        # Store file in GridFS
+        audio_file.seek(0)  # Reset file pointer to beginning
+        gridfs_file_id = fs.put(
+            audio_file,
+            filename=secure_filename(audio_file.filename),
+            content_type=audio_file.content_type,
+            metadata=metadata
+        )
+        logger.info(f"Audio saved to GridFS with ID: {gridfs_file_id}")
+        
+        # Return success response
+        return jsonify({
+            'success': True,
+            'message': 'File uploaded successfully',
+            'filename': secure_filename(audio_file.filename),
+            'file_id': str(gridfs_file_id)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error uploading audio: {str(e)}")
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
-ALLOWED_EXTENSIONS = {'mp3'}
-
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-# Callback function for async processing
-def processing_complete_callback(user_id, result):
-    processing_results[user_id] = result
-    # Store result in MongoDB for persistence
-    mongo.db.processing_results.update_one(
-        {'user_id': user_id},
-        {'$set': {'result': result, 'completed_at': datetime.utcnow()}},
-        upsert=True
-    )
-    logger.info(f"Processing completed for user {user_id}")
+@app.route('/api/audio-files/<user_id>', methods=['GET'])
+def get_user_audio_files(user_id):
+    try:
+        # Get all audio files for the user from metadata collection
+        files = list(metadata_collection.find({'user_id': user_id}))
+        
+        # Convert ObjectId to string for JSON serialization
+        for file in files:
+            file['_id'] = str(file['_id'])
+            file['fileId'] = str(file['fileId'])
+        
+        return jsonify({
+            'success': True,
+            'files': files
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Error getting audio files: {str(e)}")
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 @app.route('/process-audio/<user_id>', methods=['POST'])
 def process_audio(user_id):
     try:
@@ -185,6 +253,38 @@ def check_user():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+@app.route('/api/random-audio', methods=['GET'])
+def get_random_audio():
+    try:
+        # Specific user ID to fetch audio from
+        user_id = "user_2tAWzAngClCUsUP1mB61AP12tjV"
+        
+        # Find the specific user's document
+        user = db.users.find_one({"id": user_id})
+        
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+            
+        if 'audio_files' not in user or not user['audio_files']:
+            return jsonify({"error": "No audio files found for this user"}), 404
+        
+        # Select a random audio file from this user's files
+        random_audio = random.choice(user['audio_files'])
+        
+        # Get the file from GridFS
+        gridfs_id = random_audio['gridfs_id']
+        audio_file = fs.get(ObjectId(gridfs_id))
+        
+        # Send the file with appropriate content type
+        return send_file(
+            audio_file,
+            mimetype=random_audio.get('content_type', 'audio/mpeg'),
+            as_attachment=False,
+            download_name=random_audio.get('filename', 'audio.mp3')
+        )
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/upload/<user_id>', methods=['GET', 'POST'])
 def upload_file(user_id):
@@ -252,6 +352,7 @@ def upload_file(user_id):
             # Update user document with new audio file reference
             result = mongo.db.users.update_one(
                 {'id': user_id},
+            
                 {'$addToSet': {
                     'audio_files': {
                         'gridfs_id': gridfs_file_id,
@@ -290,7 +391,86 @@ def upload_file(user_id):
             'error': 'Upload failed',
             'details': str(e)
         }), 500
-
+@app.route('/upload-edit/<user_id>/<role>', methods=['POST'])
+def upload_to_gridfs(user_id, role):
+    try:
+        logger.info(f"New upload request received for user: {user_id}, role: {role}")
+        
+        # Validate request method
+        if request.method != 'POST':
+            return jsonify({"message": "Method not allowed"}), 405
+        
+        # Validate file presence
+        if 'file' not in request.files:
+            logger.warning("No file part in request")
+            return jsonify({'error': 'No file part'}), 400
+            
+        file = request.files['file']
+        if file.filename == '':
+            logger.warning("Empty filename provided")
+            return jsonify({'error': 'No selected file'}), 400
+            
+        if file:
+            filename = secure_filename(file.filename)
+            logger.info(f"Processing file: {filename}")
+            
+            # Save directly to GridFS with enhanced metadata
+            content_type = file.content_type if hasattr(file, 'content_type') else 'application/octet-stream'
+            gridfs_file_id = fs.put(
+                file,
+                filename=filename,
+                content_type=content_type,
+                metadata={
+                    'user_id': user_id,
+                    'role': role,
+                    'original_filename': filename,
+                    'content_type': content_type,
+                    'uploaded_at': datetime.utcnow()
+                }
+            )
+            logger.info(f"File saved to GridFS with ID: {gridfs_file_id}")
+            
+            # Update user document with new audio file reference
+            result = mongo.db.users.update_one(
+                {'id': user_id},
+                {'$addToSet': {
+                    'audio_files': {
+                        'gridfs_id': gridfs_file_id,
+                        'filename': filename,
+                        'content_type': content_type,
+                        'role': role,
+                        'uploaded_at': datetime.utcnow()
+                    }
+                }}
+            )
+            
+            if result.modified_count == 0:
+                # If user doesn't exist, create a new user document
+                mongo.db.users.insert_one({
+                    'id': user_id,
+                    'audio_files': [{
+                        'gridfs_id': gridfs_file_id,
+                        'filename': filename,
+                        'content_type': content_type,
+                        'role': role,
+                        'uploaded_at': datetime.utcnow()
+                    }]
+                })
+                logger.info(f"Created new user document for ID: {user_id}")
+            
+            return jsonify({
+                'message': f'File {filename} uploaded successfully',
+                'filename': filename,
+                'gridfs_id': str(gridfs_file_id),
+                'role': role
+            }), 200
+            
+    except Exception as e:
+        logger.error(f"Upload failed: {str(e)}")
+        return jsonify({
+            'error': 'Upload failed',
+            'details': str(e)
+        }), 500
 @app.route('/outputs/<path:path>')
 def serve_output(path):
     """Serve static files from the outputs directory"""
