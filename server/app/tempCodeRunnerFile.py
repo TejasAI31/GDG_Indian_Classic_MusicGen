@@ -1,0 +1,1 @@
+    print(AnalyseGenre("2.mp3"))

@@ -251,10 +251,9 @@ def InitializeModels(num):
 
     for i in range(num):
         GenreModel=XGBClassifier()  
-        GenreModel.load_model("server\models\GenreModel.json")
+        GenreModel.load_model("server/models/GenreModel.json")
         Models.append(GenreModel)
         Busy.append(0)
 
 if __name__=="__main__":
     InitializeModels(10)
-    print(AnalyseGenre("2.mp3"))
