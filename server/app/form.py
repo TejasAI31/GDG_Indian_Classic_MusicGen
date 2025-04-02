@@ -12,9 +12,9 @@ import io
 from datetime import datetime
 import random
 
-from DataExtractor import DataExtractor  # Assuming DataExtractor is in the same directory
-
-
+from DataExtractor import DataExtractor 
+from GenreAnalysis import AnalyseGenre, InitializeModels
+#from DataExtractor import AnalyseGenre,InitializeModels
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -216,17 +216,30 @@ def process_audio(user_id):
         # Convert full paths to relative URLs
         waveform_url = f"/outputs/{user_id}/waveform.png"
         harmonic_url = f"/outputs/{user_id}/harmonic_percussive.png"
-        
-        logger.info(f"Successfully processed audio for user {user_id}")
+
+        # **Call predict_genre internally**
+        genre = AnalyseGenre(file_path)
+
+        if genre == -1:
+            logger.warning("No available models. Attempting to reinitialize...")
+            InitializeModels(5)
+            genre = AnalyseGenre(file_path)
+            
+            if genre == -1:
+                return jsonify({'error': 'No available models to process genre'}), 503
+
+        logger.info(f"Successfully processed audio for user {user_id} with predicted genre: {genre}")
+
         return jsonify({
             'status': 'success',
-            'message': 'Audio processed successfully',
+            'message': 'Audio processed and genre predicted successfully',
             'plot_urls': {
                 'waveform': waveform_url,
                 'harmonic': harmonic_url
             },
             'waveform_url': waveform_url,
-            'harmonic_url': harmonic_url
+            'harmonic_url': harmonic_url,
+            'genre': genre  
         }), 200
         
     except Exception as e:
@@ -236,6 +249,11 @@ def process_audio(user_id):
             'error': 'Internal server error',
             'details': str(e)
         }), 500
+
+
+
+
+
 @app.route('/check_user', methods=['POST'])
 def check_user():
     try:

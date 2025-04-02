@@ -223,7 +223,7 @@ class DataExtractor:
         plt.close()
         
         return output_path
-    
+#it needs the  path to the audio file to be analysed
 def AnalyseGenre(path):
     modelnum=-1
     for i in range(len(Busy)):
