@@ -33,7 +33,7 @@ export default function UploadAnalyzePage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const userId = user?.id || null;
   const hasUploaded = useRef(false);
-
+  const [genre,setGenre] = useState<string | null>(null);
   useEffect(() => {
     if (!hasUploaded.current) {
       HandleUserUpload();
@@ -127,6 +127,7 @@ export default function UploadAnalyzePage() {
       if (result.status === 'success') {
         // Add timestamp to prevent browser caching
         const timestamp = Date.now();
+        setGenre(result.genre);
         
         // Set the plot URLs from the response
         setAnalysisImages({

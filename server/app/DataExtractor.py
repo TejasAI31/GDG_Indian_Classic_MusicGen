@@ -276,6 +276,8 @@ class InstrumentClassifier(nn.Module):
         x = self.fc_layers(x)
         return x
     
+
+#it needs the  path to the audio file to be analysed
 def AnalyseGenre(path):
     modelnum=-1
     for i in range(len(GenreBusy)):
