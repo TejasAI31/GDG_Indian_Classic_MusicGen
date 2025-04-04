@@ -2,6 +2,7 @@ import random
 from bson import ObjectId
 from flask import Flask, request, jsonify, render_template, send_file, send_from_directory
 from pymongo import ReturnDocument
+from pymongo.errors import OperationFailure
 from werkzeug.utils import secure_filename
 from flask_cors import CORS
 import os
@@ -12,8 +13,10 @@ import io
 from datetime import datetime
 import random
 
-from DataExtractor import DataExtractor 
+
 from GenreAnalysis import AnalyseGenre, InitializeModels
+from InstrumentAnalysis import InstrumentAnalyzer
+from DataExtractor import DataExtractor
 #from DataExtractor import AnalyseGenre,InitializeModels
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -249,9 +252,97 @@ def process_audio(user_id):
             'error': 'Internal server error',
             'details': str(e)
         }), 500
-
-
-
+@app.route('/analyze-instruments/<user_id>', methods=['POST'])
+def analyze_music(user_id):
+    """
+    Comprehensive music analysis for a user's latest audio file.
+    
+    Returns:
+        JSON response with:
+        - genre analysis
+        - instrument analysis (with probabilities)
+        - key/tempo analysis
+        - audio features
+    """
+    try:
+        logger.info(f"Starting music analysis for user: {user_id}")
+        
+        # Validate user exists
+        user = mongo.db.users.find_one({'id': user_id})
+        if not user:
+            logger.error(f"User {user_id} not found")
+            return jsonify({
+                'status': 'error',
+                'error': 'User not found',
+                'details': 'User ID not found in database'
+            }), 404
+        
+        # Get audio files and validate
+        audio_files = user.get('audio_files', [])
+        if not audio_files:
+            logger.error(f"No audio files found for user {user_id}")
+            return jsonify({
+                'status': 'error',
+                'error': 'No audio files found',
+                'details': 'User has no uploaded audio files'
+            }), 404
+        
+        # Get latest file
+        latest_file = sorted(audio_files, key=lambda x: x['uploaded_at'], reverse=True)[0]
+        file_path = latest_file['file_path']
+        
+        # Handle file retrieval from GridFS if needed
+        if not os.path.exists(file_path):
+            try:
+                gridfs_id = latest_file['gridfs_id']
+                grid_out = fs.get(gridfs_id)
+                with open(file_path, 'wb') as f:
+                    f.write(grid_out.read())
+                logger.info(f"Successfully restored file from GridFS to {file_path}")
+            except gridfs.NoFile:
+                logger.error(f"GridFS file not found for ID: {gridfs_id}")
+                return jsonify({
+                    'status': 'error',
+                    'error': 'File not found',
+                    'details': 'GridFS file not accessible'
+                }), 404
+            except OperationFailure as e:
+                logger.error(f"GridFS operation failed: {str(e)}")
+                return jsonify({
+                    'status': 'error',
+                    'error': 'Database error',
+                    'details': 'Failed to retrieve file from GridFS'
+                }), 500
+        
+        # Perform all analyses
+        from InstrumentAnalysis import InstrumentAnalyzer
+        from GenreAnalysis import AnalyseGenre
+        
+        genre = AnalyseGenre(file_path)
+        instrument_analysis = InstrumentAnalyzer.analyze_instrument(file_path)
+        key_tempo_analysis = InstrumentAnalyzer.analyze_key_tempo(file_path)
+        
+        # Compile final results
+        result = {
+            'status': 'success',
+            'file_path': file_path,
+            'analyses': {
+                'genre': genre if isinstance(genre, str) else 'Unknown',
+                'instrument': instrument_analysis,
+                'key_tempo': key_tempo_analysis
+            }
+        }
+        
+        logger.info(f"Music analysis complete for user {user_id}")
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logger.error(f"Error analyzing music: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'error': 'Internal server error',
+            'details': str(e)
+        }), 500
 
 
 @app.route('/check_user', methods=['POST'])

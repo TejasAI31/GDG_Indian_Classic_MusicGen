@@ -15,7 +15,45 @@ const instruments = [
   { name: "Shehnai", image: "/shehnai.png" },
   { name: "Tanpura", image: "/tanpura.png" },
 ]
-
+interface AnalysisResponse {
+  status: string;
+  file_path: string;
+  analyses: {
+    genre: string;
+    instrument: {
+      status: string;
+      predicted_instrument: string;
+      probabilities: {
+        Dhol: number;
+        Flute: number;
+        Sitar: number;
+        Tabla: number;
+        Veena: number;
+      };
+      features: {
+        mel_spectrogram: {
+          mean: number;
+          std: number;
+          min: number;
+          max: number;
+        };
+        mfcc: {
+          mean: number;
+          std: number;
+          min: number;
+          max: number;
+        };
+      };
+      analysis_type: string;
+    };
+    key_tempo: {
+      status: string;
+      key: string;
+      tempo: number;
+      analysis_type: string;
+    };
+  };
+}
 export default function InstrumentsPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -23,7 +61,9 @@ export default function InstrumentsPage() {
   const [selectedInstruments, setSelectedInstruments] = useState<{ [key: string]: number }>({})
   const [selected, setSelected] = useState<string[]>([])
   const hasUploaded = useRef(false)
-
+  const [analysisData, setAnalysisData] = useState<AnalysisResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (!hasUploaded.current) {
       HandleUserUpload()
