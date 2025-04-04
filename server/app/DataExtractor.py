@@ -6,9 +6,14 @@ import librosa
 import librosa.display
 from functools import lru_cache
 from xgboost import XGBClassifier
+import torch
+from torch import nn
 
-Models=[]
-Busy=[]
+GenreModels=[]
+GenreBusy=[]
+
+InstrumentModels=[]
+InstrumentBusy=[]
 
 GenreDict={0:"Bengali",
            1:"Bhangra",
@@ -22,6 +27,14 @@ GenreDict={0:"Bengali",
            9:"Uttarakhandi",
            10:"Assamese"
            }
+
+InstrumentDict={0:"Dhol",
+                1:"Flute",
+                2:"Sitar",
+                3:"Tabla",
+                4:"Veena"}
+
+chroma_to_key = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
 class DataExtractor:
     def __init__(self, n_mfcc=20, base_output_dir=None):
@@ -223,28 +236,111 @@ class DataExtractor:
         plt.close()
         
         return output_path
+
+class InstrumentClassifier(nn.Module):
+    def __init__(self, input_shape, num_classes):
+        super(InstrumentClassifier, self).__init__()
+
+        self.conv_layers = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        self.flatten_size = self._get_conv_output(input_shape)
+
+        self.fc_layers = nn.Sequential(
+            nn.Linear(self.flatten_size, 256),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(256, num_classes),
+            nn.Sigmoid()
+        )
+
+    def _get_conv_output(self, shape):
+        bs = 1
+        x = torch.rand(bs, 1, *shape)
+        output = self.conv_layers(x)
+        return int(np.prod(output.size()[1:]))
+
+    def forward(self, x):
+        x = x.unsqueeze(1)
+        x = self.conv_layers(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc_layers(x)
+        return x
     
 def AnalyseGenre(path):
     modelnum=-1
-    for i in range(len(Busy)):
-        if(not Busy[i]):
+    for i in range(len(GenreBusy)):
+        if(not GenreBusy[i]):
             modelnum=i
             break
     
     if(modelnum==-1):
         return modelnum
     
-    Busy[modelnum]=1
+    GenreBusy[modelnum]=1
 
     Extractor=DataExtractor()
     Extractor.load_file(path)
     Extractor.feature_extract()
     features=Extractor.get_data()
     features=features.reshape(1,120)
-    print(features.shape)
-    genre=Models[modelnum].predict(features)
-    Busy[modelnum]=0
+    genre=GenreModels[modelnum].predict(features)
+    GenreBusy[modelnum]=0
     return GenreDict[genre[0]]
+
+def AnalyseInstrument(path):
+
+    modelnum=-1
+    for i in range(len(InstrumentBusy)):
+        if(not InstrumentBusy[i]):
+            modelnum=i
+            break
+    
+    if(modelnum==-1):
+        return modelnum
+    
+    InstrumentBusy[modelnum]=1
+    
+    y,sr=librosa.load(path,duration=5)
+    mel_spec = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=128)
+    log_mel_spec = librosa.power_to_db(mel_spec)
+    mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+    instrumentdata = torch.tensor(np.concatenate([log_mel_spec, mfccs], axis=0), dtype=torch.float32).unsqueeze(0)
+
+    max=0
+    maxval=0
+    for i,value in enumerate((InstrumentModels[modelnum])(instrumentdata).detach().cpu().numpy()[0]):
+        if(value>maxval):
+            maxval=value
+            max=i
+
+    return InstrumentDict[max]
+
+def AnalyseKeyTempo(path):
+    y,sr=librosa.load(path,duration=10)
+
+    chromagram = librosa.feature.chroma_stft(y=y, sr=sr)
+    mean_chroma = np.mean(chromagram, axis=1)
+    estimated_key_index = np.argmax(mean_chroma)
+    estimated_key = chroma_to_key[estimated_key_index]
+
+    return librosa.feature.tempo(y=y,sr=sr)[0].round(),estimated_key
+    
+def AnalyseMusic(path):
+    genre=AnalyseGenre(path)
+    instrument=AnalyseInstrument(path)
+    tempo,key=AnalyseKeyTempo(path)
+
+    return [genre,instrument,key,tempo]
 
 def InitializeModels(num):
     global Models,Busy
@@ -252,8 +348,14 @@ def InitializeModels(num):
     for i in range(num):
         GenreModel=XGBClassifier()  
         GenreModel.load_model("server/models/GenreModel.json")
-        Models.append(GenreModel)
-        Busy.append(0)
+        GenreModels.append(GenreModel)
+        GenreBusy.append(0)
+        
+        InstrumentModel=InstrumentClassifier((141, 216),5)
+        InstrumentModel.load_state_dict(torch.load("server/models/InstrumentModel.pth"))
+        InstrumentModels.append(InstrumentModel)
+        InstrumentBusy.append(0)
+
 
 if __name__=="__main__":
     InitializeModels(10)
