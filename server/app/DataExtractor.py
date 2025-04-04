@@ -8,6 +8,11 @@ from functools import lru_cache
 from xgboost import XGBClassifier
 import torch
 from torch import nn
+from transformers import AutoProcessor, MusicgenForConditionalGeneration
+import scipy
+
+processor = AutoProcessor.from_pretrained("facebook/musicgen-small")
+model = MusicgenForConditionalGeneration.from_pretrained("facebook/musicgen-small")
 
 GenreModels=[]
 GenreBusy=[]
@@ -359,5 +364,15 @@ def InitializeModels(num):
         InstrumentBusy.append(0)
 
 
-if __name__=="__main__":
-    InitializeModels(10)
+def GenerateMusic(prompt,duration,username):
+    inputs = processor(
+    text=prompt,
+    padding=True,
+    return_tensors="pt",
+    )
+
+    audio_values = model.generate(**inputs, max_new_tokens=int(256*(duration/5)))
+
+    sampling_rate = model.config.audio_encoder.sampling_rate
+
+    scipy.io.wavfile.write("out/{name}.mp3".format(name=username), rate=sampling_rate, data=audio_values[0, 0].numpy())
