@@ -8,7 +8,7 @@ os.makedirs("out", exist_ok=True)
 
 # Load model and processor (this will happen once when the file is imported)
 processor = AutoProcessor.from_pretrained("facebook/musicgen-small")
-model = MusicgenForConditionalGeneration.from_pretrained("facebook/musicgen-small", torch_dtype=torch.float16)
+model = MusicgenForConditionalGeneration.from_pretrained("facebook/musicgen-small")
 
 def generate_music(prompt, duration, username):
     """

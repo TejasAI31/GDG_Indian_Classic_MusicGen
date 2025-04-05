@@ -25,9 +25,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Connect to Musicgen database
-#app.config['MONGO_URI'] = "mongodb+srv://omeshmehta03:Mav6zX7W8tpVyTSo@cluster0.9xnlqg6.mongodb.net/Music?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=false&ssl=true"
+app.config['MONGO_URI'] = "mongodb+srv://omeshmehta03:Mav6zX7W8tpVyTSo@cluster0.9xnlqg6.mongodb.net/Music?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=false&ssl=true"
 #this is for production
-app.config['MONGO_URI'] = "mongodb://localhost:27017/Musicgen"  
+#app.config['MONGO_URI'] = "mongodb://localhost:27017/Musicgen"  
 
 #app.config['MONGO_URI'] = "mongodb://localhost:27017/Musicgen"
 mongo = PyMongo(app)
