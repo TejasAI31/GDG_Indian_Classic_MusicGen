@@ -1,5 +1,7 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
+import type React from "react"
+
 import { motion } from "framer-motion"
 import { useUser } from "@clerk/nextjs"
 import Link from "next/link"
@@ -17,70 +19,75 @@ const instruments = [
 ]
 
 interface AnalysisResponse {
-  status: string;
-  file_path: string;
+  status: string
+  file_path: string
   analyses: {
-    genre: string;
+    genre: string
     instrument: {
-      status: string;
-      predicted_instrument: string;
+      status: string
+      predicted_instrument: string
       probabilities: {
-        Dhol: number;
-        Flute: number;
-        Sitar: number;
-        Tabla: number;
-        Veena: number;
-      };
+        Dhol: number
+        Flute: number
+        Sitar: number
+        Tabla: number
+        Veena: number
+      }
       features: {
         mel_spectrogram: {
-          mean: number;
-          std: number;
-          min: number;
-          max: number;
-        };
+          mean: number
+          std: number
+          min: number
+          max: number
+        }
         mfcc: {
-          mean: number;
-          std: number;
-          min: number;
-          max: number;
-        };
-      };
-      analysis_type: string;
-    };
+          mean: number
+          std: number
+          min: number
+          max: number
+        }
+      }
+      analysis_type: string
+    }
     key_tempo: {
-      status: string;
-      key: string;
-      tempo: number;
-      analysis_type: string;
-    };
-  };
+      status: string
+      key: string
+      tempo: number
+      analysis_type: string
+    }
+  }
 }
 
 export default function InstrumentsPage() {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
-  
+  const API_URL = process.env.NEXT_PUBLIC_API_URL
+
   const { user, isLoaded } = useUser()
   const [selectedInstruments, setSelectedInstruments] = useState<{ [key: string]: number }>({})
   const [selected, setSelected] = useState<string[]>([])
   const hasUploaded = useRef(false)
-  const [analysisData, setAnalysisData] = useState<AnalysisResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileUploaded, setFileUploaded] = useState(false);
-  const [genre, setGenre] = useState<string>("");
-  const [key, setKey] = useState<string>("");
-  const [melody, setMelody] = useState<string>("");
-  const [mood, setMood] = useState<string>("Neutral");
-  const [complexity, setComplexity] = useState<number>(5);
-  const [duration, setDuration] = useState<number>(60);
-  const [customNotes, setCustomNotes] = useState<string>("");
-  const [generationPrompt, setGenerationPrompt] = useState<string>("");
+  const [analysisData, setAnalysisData] = useState<AnalysisResponse | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [fileUploaded, setFileUploaded] = useState(false)
+  const [genre, setGenre] = useState<string>("")
+  const [key, setKey] = useState<string>("")
+  const [melody, setMelody] = useState<string>("")
+  const [mood, setMood] = useState<string>("Neutral")
+  const [complexity, setComplexity] = useState<number>(5)
+  const [duration, setDuration] = useState<number>(60)
+  const [customNotes, setCustomNotes] = useState<string>("")
+  const [generationPrompt, setGenerationPrompt] = useState<string>("")
   const [analysisImages, setAnalysisImages] = useState<{
-    waveform: string;
-    harmonic: string;
-  }>({ waveform: "", harmonic: "" });
-
+    waveform: string
+    harmonic: string
+  }>({ waveform: "", harmonic: "" })
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null)
+  const [showSaveModal, setShowSaveModal] = useState(false)
+  const [savedCount, setSavedCount] = useState(0)
   useEffect(() => {
     if (!hasUploaded.current) {
       HandleUserUpload()
@@ -90,47 +97,59 @@ export default function InstrumentsPage() {
 
   // Update generation prompt when relevant state changes
   useEffect(() => {
-    updateGenerationPrompt();
-  }, [selectedInstruments, selected, genre, key, mood, complexity, duration, customNotes, melody]);
+    updateGenerationPrompt()
+  }, [selectedInstruments, selected, genre, key, mood, complexity, duration, customNotes, melody])
 
   // Update selected instruments based on analysis
   useEffect(() => {
     if (analysisData && analysisData.status === "success") {
       // Set the tempo if available in the analysis
       if (analysisData.analyses.key_tempo.status === "success") {
-        const tempo = analysisData.analyses.key_tempo.tempo;
-        const detectedKey = analysisData.analyses.key_tempo.key;
-        setKey(detectedKey);
-        
+        const tempo = analysisData.analyses.key_tempo.tempo
+        const detectedKey = analysisData.analyses.key_tempo.key
+        setKey(detectedKey)
+
         // Update the detected instrument with its tempo
         if (analysisData.analyses.instrument.status === "success") {
-          const predictedInstrument = analysisData.analyses.instrument.predicted_instrument;
-          const matchedInstrument = instruments.find(
-            i => i.name.toLowerCase().includes(predictedInstrument.toLowerCase())
-          );
-          
+          const predictedInstrument = analysisData.analyses.instrument.predicted_instrument
+          const matchedInstrument = instruments.find((i) =>
+            i.name.toLowerCase().includes(predictedInstrument.toLowerCase()),
+          )
+
           if (matchedInstrument) {
-            setSelected(prev => {
+            setSelected((prev) => {
               if (!prev.includes(matchedInstrument.name)) {
-                return [...prev, matchedInstrument.name];
+                return [...prev, matchedInstrument.name]
               }
-              return prev;
-            });
-            
-            setSelectedInstruments(prev => ({
+              return prev
+            })
+
+            setSelectedInstruments((prev) => ({
               ...prev,
-              [matchedInstrument.name]: tempo
-            }));
+              [matchedInstrument.name]: tempo,
+            }))
           }
         }
-        
+
         // Update genre if detected
         if (analysisData.analyses.genre) {
-          setGenre(analysisData.analyses.genre);
+          setGenre(analysisData.analyses.genre)
         }
       }
     }
-  }, [analysisData]);
+  }, [analysisData])
+
+  useEffect(() => {
+    if (audioUrl) {
+      const audio = new Audio(audioUrl)
+      audio.addEventListener("ended", () => setIsPlaying(false))
+      setAudioElement(audio)
+      return () => {
+        audio.pause()
+        audio.removeEventListener("ended", () => setIsPlaying(false))
+      }
+    }
+  }, [audioUrl])
 
   const HandleUserUpload = async () => {
     try {
@@ -140,7 +159,7 @@ export default function InstrumentsPage() {
           email: user.emailAddresses?.[0]?.emailAddress || null,
           fullName: user.fullName || null,
         }
-        
+
         // First check if user exists
         const checkResponse = await fetch(`${API_URL}/check_user`, {
           method: "POST",
@@ -149,18 +168,18 @@ export default function InstrumentsPage() {
           },
           body: JSON.stringify({ id: userData.id }),
         })
-        
+
         if (!checkResponse.ok) {
           throw new Error("User check failed")
         }
-        
+
         const checkResult = await checkResponse.json()
-        
+
         if (checkResult.exists) {
           console.log("User already exists")
           return // Exit the function if user exists
         }
-        
+
         // If user doesn't exist, proceed with upload
         const response = await fetch(`${API_URL}/user`, {
           method: "POST",
@@ -169,12 +188,12 @@ export default function InstrumentsPage() {
           },
           body: JSON.stringify(userData),
         })
-        
+
         if (!response.ok) {
           console.log("Response Status:", response.status)
           throw new Error("Upload failed")
         }
-        
+
         const result = await response.json()
         console.log(result.message)
       } else {
@@ -187,107 +206,107 @@ export default function InstrumentsPage() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setSelectedFile(e.target.files[0]);
-      setFileUploaded(false);
+      setSelectedFile(e.target.files[0])
+      setFileUploaded(false)
     }
-  };
+  }
 
   const handleFileUpload = async () => {
     if (!selectedFile || !isLoaded || !user) {
-      setError("Please select a file and ensure you're logged in");
-      return;
+      setError("Please select a file and ensure you're logged in")
+      return
     }
 
     try {
-      setLoading(true);
-      const formData = new FormData();
-      formData.append("file", selectedFile);
+      setLoading(true)
+      const formData = new FormData()
+      formData.append("file", selectedFile)
 
       const response = await fetch(`${API_URL}/upload/${user.id}`, {
         method: "POST",
         body: formData,
-      });
+      })
 
       if (!response.ok) {
-        throw new Error(`Upload failed with status: ${response.status}`);
+        throw new Error(`Upload failed with status: ${response.status}`)
       }
 
-      const result = await response.json();
-      console.log("Upload result:", result);
-      setFileUploaded(true);
+      const result = await response.json()
+      console.log("Upload result:", result)
+      setFileUploaded(true)
     } catch (error) {
-      console.error("Error uploading file:", error);
-      setError(error instanceof Error ? error.message : "Unknown error occurred");
+      console.error("Error uploading file:", error)
+      setError(error instanceof Error ? error.message : "Unknown error occurred")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleAnalyzeAudio = async () => {
     try {
       if (!selectedFile || !isLoaded || !user) {
-        setError("Please select a file and ensure you're logged in");
-        return;
+        setError("Please select a file and ensure you're logged in")
+        return
       }
 
       if (!fileUploaded) {
-        setError("Please upload the file first");
-        return;
+        setError("Please upload the file first")
+        return
       }
 
-      setLoading(true);
+      setLoading(true)
 
       // Call the process-audio endpoint
       const processResponse = await fetch(`${API_URL}/process-audio/${user.id}`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-      });
+      })
 
       if (!processResponse.ok) {
-        throw new Error(`Server responded with ${processResponse.status}: ${processResponse.statusText}`);
+        throw new Error(`Server responded with ${processResponse.status}: ${processResponse.statusText}`)
       }
 
-      const processResult = await processResponse.json();
-      console.log("Audio processing result:", processResult);
+      const processResult = await processResponse.json()
+      console.log("Audio processing result:", processResult)
 
-      if (processResult.status === 'success') {
-        const timestamp = Date.now();
-        setGenre(processResult.genre);
+      if (processResult.status === "success") {
+        const timestamp = Date.now()
+        setGenre(processResult.genre)
 
         setAnalysisImages({
           waveform: `${API_URL}${processResult.plot_urls.waveform}?t=${timestamp}`,
           harmonic: `${API_URL}${processResult.plot_urls.harmonic}?t=${timestamp}`,
-        });
+        })
 
         // Call the analyze-music endpoint
         const musicAnalysisResponse = await fetch(`${API_URL}/analyze-instruments/${user.id}`, {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
-        });
+        })
 
         if (!musicAnalysisResponse.ok) {
-          throw new Error("Music analysis failed");
+          throw new Error("Music analysis failed")
         }
 
-        const musicAnalysisResult = await musicAnalysisResponse.json();
-        console.log("Music analysis result:", musicAnalysisResult);
+        const musicAnalysisResult = await musicAnalysisResponse.json()
+        console.log("Music analysis result:", musicAnalysisResult)
 
         // Store the analysis data in state
-        setAnalysisData(musicAnalysisResult);
+        setAnalysisData(musicAnalysisResult)
       } else {
-        console.error("Error processing audio:", processResult.error || "Unknown error");
+        console.error("Error processing audio:", processResult.error || "Unknown error")
       }
     } catch (error) {
-      console.error('Error analyzing audio:', error);
-      setError(error instanceof Error ? error.message : 'Unknown error occurred');
+      console.error("Error analyzing audio:", error)
+      setError(error instanceof Error ? error.message : "Unknown error occurred")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleInstrumentClick = (name: string) => {
     if (selected.includes(name)) {
@@ -303,67 +322,150 @@ export default function InstrumentsPage() {
 
   const updateGenerationPrompt = () => {
     // Create a pointwise prompt for music generation
-    let promptPoints = [];
-    
+    const promptPoints = []
+
     // Add genre if available
     if (genre) {
-      promptPoints.push(`genre: ${genre}`);
+      promptPoints.push(`genre: ${genre}`)
     }
-    
+
     // Add instruments if selected
     if (selected.length > 0) {
-      promptPoints.push(`instruments: ${selected.join(", ")}`);
+      promptPoints.push(`instruments: ${selected.join(", ")}`)
     }
-    
+
     // Add key if available
     if (key) {
-      promptPoints.push(`key: ${key}`);
+      promptPoints.push(`key: ${key}`)
     }
-    
+
     // Add mood
-    promptPoints.push(`mood: ${mood}`);
-    
+    promptPoints.push(`mood: ${mood}`)
+
     // Add instrument tempos
-    const tempoPoints: string[] = [];
+    const tempoPoints: string[] = []
     Object.entries(selectedInstruments).forEach(([instrument, bpm]) => {
       if (selected.includes(instrument)) {
-        tempoPoints.push(`${instrument}: ${bpm} BPM`);
+        tempoPoints.push(`${instrument}: ${bpm} BPM`)
       }
-    });
-    
+    })
+
     if (tempoPoints.length > 0) {
       promptPoints.push(`tempos: {
       ${tempoPoints.join(",\n    ")}
-  }`);
+  }`)
     }
-    
+
     // Add complexity
-    promptPoints.push(`complexity: ${complexity}/10`);
-    
+    promptPoints.push(`complexity: ${complexity}/10`)
+
     // Add duration
-    promptPoints.push(`duration: ${duration} seconds`);
-    
+    promptPoints.push(`duration: ${duration} seconds`)
+
     // Add melody if available
     if (melody) {
-      promptPoints.push(`melody: ${melody}`);
+      promptPoints.push(`melody: ${melody}`)
     }
-    
+
     // Add custom notes if available
     if (customNotes) {
-      promptPoints.push(`notes: ${customNotes}`);
+      promptPoints.push(`notes: ${customNotes}`)
     }
-    
-    // Join all points with line breaks
-    setGenerationPrompt(promptPoints.join("\n"));
-  };
-  
 
-  const handleGenerateMusic = () => {
+    // Join all points with line breaks
+    setGenerationPrompt(promptPoints.join("\n"))
+  }
+
+  const handlePlayPause = () => {
+    if (!audioElement) return
+
+    if (isPlaying) {
+      audioElement.pause()
+      setIsPlaying(false)
+    } else {
+      audioElement.play()
+      setIsPlaying(true)
+    }
+  }
+
+  const handleSaveClick = () => {
+    setShowSaveModal(true)
+  }
+
+  const handleConfirmSave = async () => {
+    if (!user?.id) return;
+
+    try {
+        const newIndex = savedCount + 1;
+        const fileName = `generated${user.id}_${newIndex}.mp3`; // Now includes .mp3 extension
+        console.log(`Saving file as: ${fileName}`);
+        
+        // Assuming you have the MP3 audio blob available
+        // const audioBlob = currentAudioBlob; // Your MP3 audio data
+        
+        const formData = new FormData();
+        formData.append('audio', fileName); // Use the full filename with .mp3
+        
+        const response = await fetch(`${API_URL}/generate-save/${user.id}`, {
+            method: "POST",
+            body: formData, // Let browser set Content-Type with boundary
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('Save successful:', result);
+        
+        setSavedCount(newIndex);
+        setShowSaveModal(false);
+        
+        
+    } catch (error) {
+        console.error('Error saving audio:', error);       
+        // Consider keeping modal open on error
+    }
+};
+
+  const handleGenerateMusic = async () => {
     // This function would call your music generation API
     // using the generationPrompt
-    console.log("Generating music with prompt:", generationPrompt);
-    // Implement your music generation call here
-  };
+    try {
+      setIsGenerating(true)
+      setError(null)
+      setAudioUrl(null)
+
+      // Get a unique identifier for the user (in a real app, you'd use authentication)
+
+      // Call the Flask API
+      const response = await fetch(`${API_URL}/generate-music`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt: generationPrompt,
+          duration,
+          username: user?.id || "unknown",
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to generate music")
+      }
+
+      // Create a full URL to download the file
+      const downloadUrl = `http://localhost:5000${data.file_path}`
+      setAudioUrl(downloadUrl)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unknown error occurred")
+    } finally {
+      setIsGenerating(false)
+    }
+  }
 
   return (
     <motion.div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-8">
@@ -374,15 +476,15 @@ export default function InstrumentsPage() {
       >
         Music Creation Studio
       </motion.h1>
-      
+
       <div className="flex justify-center gap-4 mb-8">
         <Link href="/upload-analyze" className="px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
           Go to Upload & Analysis
         </Link>
       </div>
-      
+
       {/* File Upload Section */}
-      <motion.div 
+      <motion.div
         className="mb-12 p-6 bg-gray-800 rounded-xl shadow-xl"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -412,19 +514,15 @@ export default function InstrumentsPage() {
               {loading ? "Analyzing..." : "Analyze Audio"}
             </button>
           </div>
-          
-          {error && (
-            <div className="p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200">
-              {error}
-            </div>
-          )}
-          
+
+          {error && <div className="p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200">{error}</div>}
+
           {selectedFile && (
             <p className="text-sm text-gray-300">
               Selected file: {selectedFile.name} ({Math.round(selectedFile.size / 1024)} KB)
             </p>
           )}
-          
+
           {fileUploaded && (
             <div className="p-3 bg-green-900/30 border border-green-600 rounded-lg text-green-200">
               File uploaded successfully! You can now analyze it.
@@ -432,10 +530,10 @@ export default function InstrumentsPage() {
           )}
         </div>
       </motion.div>
-      
+
       {/* Analysis Results Display */}
       {analysisData && (
-        <motion.div 
+        <motion.div
           className="mb-12 p-6 bg-gray-800 rounded-xl shadow-xl"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -446,24 +544,42 @@ export default function InstrumentsPage() {
             <div>
               <h3 className="text-xl font-semibold mb-4">Audio Characteristics</h3>
               <ul className="space-y-2">
-                <li><span className="text-gray-400">Genre:</span> {analysisData.analyses.genre || "Unknown"}</li>
-                <li><span className="text-gray-400">Key:</span> {analysisData.analyses.key_tempo.key || "Unknown"}</li>
-                <li><span className="text-gray-400">Tempo:</span> {analysisData.analyses.key_tempo.tempo?.toFixed(1) || "Unknown"} BPM</li>
-                <li><span className="text-gray-400">Detected Instrument:</span> {analysisData.analyses.instrument.predicted_instrument || "Unknown"}</li>
+                <li>
+                  <span className="text-gray-400">Genre:</span> {analysisData.analyses.genre || "Unknown"}
+                </li>
+                <li>
+                  <span className="text-gray-400">Key:</span> {analysisData.analyses.key_tempo.key || "Unknown"}
+                </li>
+                <li>
+                  <span className="text-gray-400">Tempo:</span>{" "}
+                  {analysisData.analyses.key_tempo.tempo?.toFixed(1) || "Unknown"} BPM
+                </li>
+                <li>
+                  <span className="text-gray-400">Detected Instrument:</span>{" "}
+                  {analysisData.analyses.instrument.predicted_instrument || "Unknown"}
+                </li>
               </ul>
             </div>
-            
+
             {analysisImages.waveform && (
               <div>
                 <h3 className="text-xl font-semibold mb-4">Visualizations</h3>
                 <div className="grid grid-cols-1 gap-4">
                   <div>
                     <p className="text-sm text-gray-400 mb-2">Waveform</p>
-                    <img src={analysisImages.waveform} alt="Waveform visualization" className="w-full rounded-lg border border-gray-700" />
+                    <img
+                      src={analysisImages.waveform || "/placeholder.svg"}
+                      alt="Waveform visualization"
+                      className="w-full rounded-lg border border-gray-700"
+                    />
                   </div>
                   <div>
                     <p className="text-sm text-gray-400 mb-2">Harmonic Content</p>
-                    <img src={analysisImages.harmonic} alt="Harmonic visualization" className="w-full rounded-lg border border-gray-700" />
+                    <img
+                      src={analysisImages.harmonic || "/placeholder.svg"}
+                      alt="Harmonic visualization"
+                      className="w-full rounded-lg border border-gray-700"
+                    />
                   </div>
                 </div>
               </div>
@@ -471,7 +587,7 @@ export default function InstrumentsPage() {
           </div>
         </motion.div>
       )}
-      
+
       {/* Instrument Selection */}
       <motion.div
         className="mb-12"
@@ -501,7 +617,7 @@ export default function InstrumentsPage() {
                     selected.includes(instrument.name) ? "brightness-75 sepia" : "brightness-100"
                   }`}
                 />
-                
+
                 {selected.includes(instrument.name) && (
                   <motion.div
                     layoutId={`overlay-${instrument.name}`}
@@ -519,7 +635,7 @@ export default function InstrumentsPage() {
                     </svg>
                   </motion.div>
                 )}
-                
+
                 <motion.div
                   className="absolute inset-0 border-2 border-transparent pointer-events-none"
                   initial={{ borderColor: "transparent" }}
@@ -537,7 +653,7 @@ export default function InstrumentsPage() {
                   </p>
                 </motion.div>
               </motion.div>
-              
+
               <motion.p
                 className="mt-4 text-center font-semibold text-lg transition-colors"
                 style={{
@@ -550,9 +666,9 @@ export default function InstrumentsPage() {
           ))}
         </div>
       </motion.div>
-      
+
       {/* Tempo Adjustment */}
-      <motion.div 
+      <motion.div
         className="mb-12 space-y-8"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -585,16 +701,16 @@ export default function InstrumentsPage() {
           ))}
         </div>
       </motion.div>
-      
+
       {/* Additional Music Parameters */}
-      <motion.div 
+      <motion.div
         className="mb-12 p-6 bg-gray-800 rounded-xl shadow-xl"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.8 }}
       >
         <h2 className="text-3xl font-bold mb-6">Music Parameters</h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div className="space-y-4">
             <div>
@@ -607,7 +723,7 @@ export default function InstrumentsPage() {
                 placeholder="e.g., Classical, Jazz, Rock"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium mb-2">Key</label>
               <select
@@ -632,7 +748,7 @@ export default function InstrumentsPage() {
                 <option value="D# Minor">D# Minor</option>
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium mb-2">Mood</label>
               <select
@@ -652,12 +768,10 @@ export default function InstrumentsPage() {
               </select>
             </div>
           </div>
-          
+
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Complexity (1-10): {complexity}
-              </label>
+              <label className="block text-sm font-medium mb-2">Complexity (1-10): {complexity}</label>
               <input
                 type="range"
                 min="1"
@@ -667,22 +781,20 @@ export default function InstrumentsPage() {
                 className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
               />
             </div>
-            
+
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Duration (seconds): {duration}
-              </label>
+              <label className="block text-sm font-medium mb-2">Duration (seconds): {duration}</label>
               <input
                 type="range"
-                min="30"
-                max="300"
+                min="10"
+                max="30"
                 step="10"
                 value={duration}
                 onChange={(e) => setDuration(Number(e.target.value))}
                 className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium mb-2">Melody Pattern</label>
               <input
@@ -695,7 +807,7 @@ export default function InstrumentsPage() {
             </div>
           </div>
         </div>
-        
+
         <div className="mb-6">
           <label className="block text-sm font-medium mb-2">Additional Notes</label>
           <textarea
@@ -706,41 +818,135 @@ export default function InstrumentsPage() {
           />
         </div>
       </motion.div>
-      
+
       {/* Real-time Generation Prompt Display */}
       <motion.div
-    className="mb-12 p-6 bg-gray-800 rounded-xl shadow-xl"
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    transition={{ duration: 0.5, delay: 1.0 }}
-  >
-    <h2 className="text-3xl font-bold mb-6">Generation Prompt</h2>
-    <div className="p-4 bg-black/30 border border-gray-600 rounded-lg">
-      <pre className="text-gray-300 whitespace-pre font-mono text-sm">{generationPrompt}</pre>
-    </div>
-    <div className="mt-4 flex justify-end">
-      <button
-        onClick={() => {
-          navigator.clipboard.writeText(generationPrompt);
-          // Optionally add a copied confirmation here
-        }}
-        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
+        className="mb-12 p-6 bg-gray-800 rounded-xl shadow-xl"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 1.0 }}
       >
-        Copy to Clipboard
-      </button>
-    </div>
-  </motion.div>
-  
-  {/* Generate Button */}
-  <motion.button
-    onClick={handleGenerateMusic}
-    className="w-full py-4 px-6 rounded-lg text-xl font-bold bg-blue-600 hover:bg-blue-700 transition-all duration-300"
-    whileHover={{ scale: 1.02 }}
-    whileTap={{ scale: 0.98 }}
-    transition={{ duration: 0.3 }}
-  >
-    Generate Music
-  </motion.button>
-</motion.div>
+        <h2 className="text-3xl font-bold mb-6">Generation Prompt</h2>
+        <div className="p-4 bg-black/30 border border-gray-600 rounded-lg">
+          <pre className="text-gray-300 whitespace-pre font-mono text-sm">{generationPrompt}</pre>
+        </div>
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(generationPrompt)
+              // Optionally add a copied confirmation here
+            }}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
+          >
+            Copy to Clipboard
+          </button>
+        </div>
+      </motion.div>
+
+      {/* Generate Button */}
+      <motion.button
+        onClick={handleGenerateMusic}
+        className="w-full py-4 px-6 rounded-lg text-xl font-bold bg-blue-600 hover:bg-blue-700 transition-all duration-300"
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        transition={{ duration: 0.3 }}
+      >
+        Generate Music
+      </motion.button>
+
+      {/* Audio Player */}
+      {audioUrl && (
+        <motion.div
+          className="mt-8 p-6 bg-gray-800 rounded-xl shadow-xl"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <h2 className="text-3xl font-bold mb-6">Your Generated Music</h2>
+
+          <div className="flex flex-col items-center space-y-4">
+            <div className="w-full h-16 bg-gray-700 rounded-lg relative overflow-hidden">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <p className="text-gray-400 text-sm">{isPlaying ? "Now Playing" : "Ready to Play"}</p>
+              </div>
+            </div>
+
+            <div className="flex space-x-4">
+              <button
+                onClick={handlePlayPause}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center space-x-2"
+              >
+                {isPlaying ? (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path
+                        fillRule="evenodd"
+                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>Pause</span>
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>Play</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handleSaveClick}
+                className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg flex items-center space-x-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path
+                    fillRule="evenodd"
+                    d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <span>Save</span>
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Save Confirmation Modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <motion.div
+            className="bg-gray-800 p-6 rounded-xl max-w-md w-full"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <h3 className="text-xl font-bold mb-4">Save Generated Music</h3>
+            <p className="mb-6">
+              This will save your music as "generated{user?.id}_{savedCount + 1}"
+            </p>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => setShowSaveModal(false)}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button onClick={handleConfirmSave} className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg">
+                Confirm Save
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </motion.div>
   )
 }
+

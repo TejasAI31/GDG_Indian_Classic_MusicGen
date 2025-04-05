@@ -1,4 +1,5 @@
 import random
+import string
 from bson import ObjectId
 from flask import Flask, request, jsonify, render_template, send_file, send_from_directory
 from pymongo import ReturnDocument
@@ -11,8 +12,8 @@ from flask_pymongo import PyMongo
 import gridfs
 import io
 from datetime import datetime
-import random
 
+from MusicGenerator import generate_music
 
 from GenreAnalysis import AnalyseGenre, InitializeModels
 from InstrumentAnalysis import InstrumentAnalyzer
@@ -24,9 +25,11 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Connect to Musicgen database
-#app.config['MONGO_URI'] = "mongodb+srv://omeshmehta03:Mav6zX7W8tpVyTSo@cluster0.9xnlqg6.mongodb.net/Music?retryWrites=true&w=majority"**#this is for production
-#app.config['MONGO_URI'] = "mongodb://localhost:27017/Musicgen"   ****this is for local testing****
-app.config['MONGO_URI'] = "mongodb://localhost:27017/Musicgen"
+#app.config['MONGO_URI'] = "mongodb+srv://omeshmehta03:Mav6zX7W8tpVyTSo@cluster0.9xnlqg6.mongodb.net/Music?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=false&ssl=true"
+#this is for production
+app.config['MONGO_URI'] = "mongodb://localhost:27017/Musicgen"  
+
+#app.config['MONGO_URI'] = "mongodb://localhost:27017/Musicgen"
 mongo = PyMongo(app)
 db = mongo.db
 # Define metadata collection
@@ -86,6 +89,52 @@ def index():
             'details': str(e)
         }), 500
 # Audio Upload Route
+@app.route('/generate-music', methods=['POST'])
+def generate_music_endpoint():
+    try:
+        # Get JSON data from request
+        data = request.json
+        
+        # Extract parameters
+        prompt = data.get('prompt')
+        duration = float(data.get('duration', 5))  # Default to 5 seconds
+        username = data.get('username')
+        
+        # Validate inputs
+        if not prompt or not username:
+            return jsonify({'error': 'Missing required parameters'}), 400
+            
+        # Limit duration for resource management
+        if duration > 30:
+            return jsonify({'error': 'Duration cannot exceed 30 seconds'}), 400
+        
+        # Generate the music
+        output_path = generate_music(prompt, duration, username)
+        
+        # Return the file path that can be used to download the file
+        return jsonify({
+            'success': True,
+            'file_path': f'/api/download/{username}'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/download/<username>', methods=['GET'])
+def download_file(username):
+    """Endpoint to download the generated music file"""
+    try:
+        # Ensure the username is safe
+        safe_username = "".join(c for c in username if c.isalnum() or c in "._-")
+        file_path = os.path.join('out', safe_username, 'generated.mp3')
+        
+        # Check if file exists
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'File not found'}), 404
+            
+        return send_file(file_path, as_attachment=True)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 @app.route('/api/upload-audio/<user_id>', methods=['POST'])
 def upload_audio(user_id):
     try:
@@ -684,7 +733,67 @@ def test_json():
             'error': 'JSON test failed',
             'details': str(e)
         }), 500
-
+@app.route('/generate-save/<user_id>', methods=['POST'])
+def save_audio(user_id):
+    try:
+        logger.info(f"Received save request for user {user_id}")
+        
+        # Generate a unique filename using timestamp and a random string
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+        unique_filename = f"audio_{timestamp}_{random_suffix}.mp3"
+        
+        # Source filename is still generated.mp3
+        source_filename = "generated.mp3"
+        
+        # Check if user exists
+        user = mongo.db.users.find_one({"id": user_id})
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Path to the user-specific subfolder containing generated.mp3
+        out_folder = os.path.join(os.path.dirname(__file__), 'out')
+        user_folder = os.path.join(out_folder, f"{user_id}")
+        file_path = os.path.join(user_folder, source_filename)
+        
+        # Check if file exists
+        if not os.path.exists(file_path):
+            return jsonify({'error': f'Generated audio file not found in {user_folder}'}), 404
+        
+        # Read the file
+        with open(file_path, 'rb') as audio_file:
+            # Save to GridFS with the unique filename
+            audio_id = fs.put(
+                audio_file,
+                filename=unique_filename,
+                content_type='audio/mpeg'  # MP3 MIME type
+            )
+            
+            # Update user document in generated-audio array
+            mongo.db.users.update_one(
+                {"id": user_id},
+                {
+                    "$push": {
+                        "generated-audio": {
+                            "gridfs_id": audio_id,
+                            "filename": unique_filename,
+                            "created_at": datetime.utcnow(),
+                            "content_type": "audio/mpeg"
+                        }
+                    }
+                }
+            )
+        
+        logger.info(f"Successfully saved MP3 file {unique_filename} for user {user_id}")
+        return jsonify({
+            'success': True,
+            'message': 'MP3 audio saved successfully',
+            'filename': unique_filename
+        })
+        
+    except Exception as e:
+        logger.error(f"Failed to save audio: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 # Route to add users to the users collection
 @app.route('/user', methods=['POST'])  # Fixed missing @ decorator
 def add_user():
@@ -722,7 +831,8 @@ def add_user():
             'fullName': data['fullName'],
             'email': data['email'],
             'id': user_id,
-            'audio_files': []  # Initialize empty array for future audio files
+            'audio_files': [],
+            'generated-audio': [] # Initialize empty array for future audio files
         }
         
         result = mongo.db.users.insert_one(user_data)
@@ -738,7 +848,110 @@ def add_user():
             'error': 'User registration failed',
             'details': str(e)
         }), 500
+@app.route('/files-generated', methods=['GET'])
+def get_user_generated_files():
+    try:
+        user_id = request.args.get('userId')
+        if not user_id:
+            return jsonify({'error': 'User ID is required'}), 400
+        
+        user = mongo.db.users.find_one({'id': user_id})
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        generated_audio_files = user.get('generated-audio', [])
+        return jsonify(generated_audio_files)
+    except Exception as e:
+        logger.error(f"Error fetching user generated files: {str(e)}")
+        return jsonify({'error': 'Failed to fetch generated files'}), 500
 
+@app.route('/files-generated/<file_id>', methods=['DELETE'])
+def delete_generated_file(file_id):
+    try:
+        logger.info(f"Deleting generated file with ID: {file_id}")
+        user_id = request.args.get('userId')
+        
+        if not user_id:
+            return jsonify({'error': 'User ID is required'}), 400
+        
+        # Convert string ID to ObjectId
+        try:
+            file_id_obj = ObjectId(file_id)
+        except:
+            logger.warning(f"Invalid file ID format: {file_id}")
+            return jsonify({'error': 'Invalid file ID format'}), 400
+        
+        # Find the user
+        user = mongo.db.users.find_one({'id': user_id})
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Check if the file exists and belongs to the user
+        file_exists = False
+        for file in user.get('generated-audio', []):
+            if str(file.get('gridfs_id')) == str(file_id_obj):
+                file_exists = True
+                break
+        
+        if not file_exists:
+            return jsonify({'error': 'Generated file not found or does not belong to user'}), 404
+        
+        # Delete file from GridFS
+        if fs.exists({"_id": file_id_obj}):
+            fs.delete(file_id_obj)
+        
+        # Remove file reference from user document
+        result = mongo.db.users.update_one(
+            {'id': user_id},
+            {'$pull': {'generated-audio': {'gridfs_id': file_id_obj}}}
+        )
+        
+        if result.modified_count == 0:
+            return jsonify({'error': 'Failed to update user document'}), 500
+        
+        return jsonify({'message': 'Generated file deleted successfully'}), 200
+        
+    except Exception as e:
+        logger.error(f"Generated file deletion failed: {str(e)}")
+        return jsonify({
+            'error': 'Generated file deletion failed',
+            'details': str(e)
+        }), 500
+
+@app.route('/files-generated/<file_id>', methods=['GET'])
+def get_generated_file(file_id):
+    try:
+        logger.info(f"Retrieving generated file with ID: {file_id}")
+        
+        # Convert string ID to ObjectId
+        try:
+            file_id = ObjectId(file_id)
+        except:
+            logger.warning(f"Invalid file ID format: {file_id}")
+            return jsonify({'error': 'Invalid file ID format'}), 400
+        
+        # Check if the file exists in GridFS
+        if not fs.exists({"_id": file_id}):
+            logger.warning(f"Generated file with ID {file_id} not found in GridFS")
+            return jsonify({'error': 'Generated file not found'}), 404
+        
+        grid_out = fs.get(file_id)
+        content_type = grid_out.content_type
+        filename = grid_out.filename
+        
+        return send_file(
+            io.BytesIO(grid_out.read()),
+            mimetype=content_type,
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        logger.error(f"Generated file retrieval failed: {str(e)}")
+        return jsonify({
+            'error': 'Generated file retrieval failed',
+            'details': str(e)
+        }), 500
 # Add a route to retrieve files from GridFS
 @app.route('/files/<file_id>', methods=['GET'])
 def get_file(file_id):
