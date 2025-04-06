@@ -1,10 +1,10 @@
-
-
-import type { NextConfig } from 'next';
+import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'export', // Required for static deployment on Netlify
-  images: { unoptimized: true }, // Disable Image Optimization (static export)
+  /* config options here */
+  images: {
+    domains: ['images.unsplash.com'],
+  },
 };
 
 export default nextConfig;
