@@ -16,14 +16,7 @@ interface AudioFile {
   download_url?: string;
 }
 
-interface UploadResponse {
-  success: boolean;
-  message?: string;
-  filename?: string;
-  file_id?: string;
-  metadata_id?: string;
-  error?: string;
-}
+
 
 interface AudioFilesResponse {
   success: boolean;

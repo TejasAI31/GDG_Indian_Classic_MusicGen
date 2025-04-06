@@ -852,6 +852,7 @@ export default function InstrumentsPage() {
         transition={{ duration: 0.3 }}
       >
         Generate Music
+        {isGenerating}
       </motion.button>
 
       {/* Audio Player */}
