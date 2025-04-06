@@ -1,5 +1,6 @@
 # 🎵 Indian Classical Music Explorer
-![image](https://github.com/user-attachments/assets/086b9310-38ea-4ec3-9e87-95c6debd1dc6)
+![image](https://github.com/user-attachments/assets/58016a8c-ecd8-405f-ad18-d8bc235851c9)
+
 
 
 This project is a full-stack web application designed to help users **analyze**, **generate**, and **explore** the world of **Indian classical music**.
