@@ -26,7 +26,8 @@
     "simplex-noise": "^4.0.3",
     "sonner": "^2.0.2",
     "tailwind-merge": "^3.0.2",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "typescript-eslint": "^8.29.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
