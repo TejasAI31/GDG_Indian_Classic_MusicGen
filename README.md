@@ -59,12 +59,12 @@ This project is a full-stack web application designed to help users **analyze**,
 
 ### Analyze Page
 <!-- Upload Screenshot of Analyze Page -->
-![Analyze Screenshot]![image](https://github.com/user-attachments/assets/fb080ef4-eed0-4f9b-9dff-e90c22e28508)
+![image](https://github.com/user-attachments/assets/fb080ef4-eed0-4f9b-9dff-e90c22e28508)
 
 
 ### Generate Page
 <!-- Upload Screenshot of Generate Page -->
-![Generate Screenshot]![image](https://github.com/user-attachments/assets/734fe622-6d20-4520-9741-324b65b7a40e)
+![image](https://github.com/user-attachments/assets/734fe622-6d20-4520-9741-324b65b7a40e)
 
 
 ---
